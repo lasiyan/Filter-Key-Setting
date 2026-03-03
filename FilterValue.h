@@ -10,6 +10,7 @@
 
 // Common
 #define KEY_RESTORE_SETTING  ("restore_setting")
+#define KEY_DISABLE_HOTKEY   ("disable_hotkey")
 #define KEY_LAST_PRESET      ("last_preset_number")
 #define KEY_FAST_APPLY       ("fast_apply")
 

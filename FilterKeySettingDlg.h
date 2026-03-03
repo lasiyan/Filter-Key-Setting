@@ -59,4 +59,5 @@ class CFilterKeySettingDlg : public CDialogEx {
 
  public:
   afx_msg void OnBnClickedCheckRestoreSetting();
+  afx_msg void OnBnClickedCheckDisableHotkey();
 };

@@ -56,6 +56,8 @@ ON_BN_CLICKED(IDC_CHECK_FAST_APPLY,
               &CFilterKeySettingDlg::OnBnClickedCheckFastApply)
 ON_BN_CLICKED(IDC_CHECK_RESTORE_SETTING,
               &CFilterKeySettingDlg::OnBnClickedCheckRestoreSetting)
+ON_BN_CLICKED(IDC_CHECK_DISABLE_HOTKEY,
+              &CFilterKeySettingDlg::OnBnClickedCheckDisableHotkey)
 END_MESSAGE_MAP()
 
 // CFilterKeySettingDlg message handlers
@@ -203,6 +205,11 @@ void CFilterKeySettingDlg::OnBnClickedCheckRestoreSetting()
   UpdateOption();  //
 }
 
+void CFilterKeySettingDlg::OnBnClickedCheckDisableHotkey()
+{
+  UpdateOption();  //
+}
+
 void CFilterKeySettingDlg::OnEnSetFocusTesting()
 {
   GetDlgItem(IDC_EDIT_TESTING)->SetWindowText("");
@@ -267,6 +274,11 @@ void CFilterKeySettingDlg::ApplyFilterKey(BOOL alert)
   filter_keys.iRepeatMSec = repeat_rate;
   filter_keys.dwFlags     = filter_flag;
 
+  if (global_config_->getInteger(KEY_DISABLE_HOTKEY)) {
+    filter_keys.dwFlags &=
+        ~(FKF_HOTKEYACTIVE | FKF_CONFIRMHOTKEY | FKF_HOTKEYSOUND);
+  }
+
   bool ok = SystemParametersInfo(SPI_SETFILTERKEYS, sizeof(FILTERKEYS),
                                  &filter_keys, SPIF_UPDATEINIFILE);
 
@@ -311,6 +323,13 @@ void CFilterKeySettingDlg::UpdateOption(BOOL write /* = TRUE*/)
       auto checked = btn ? btn->GetCheck() : false;
       global_config_->set(KEY_RESTORE_SETTING, static_cast<DWORD>(checked));
     }
+
+    // Disable Hotkey
+    {
+      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_HOTKEY));
+      auto checked = btn ? btn->GetCheck() : false;
+      global_config_->set(KEY_DISABLE_HOTKEY, static_cast<DWORD>(checked));
+    }
   }
   else {
     // Fast Apply
@@ -324,6 +343,13 @@ void CFilterKeySettingDlg::UpdateOption(BOOL write /* = TRUE*/)
     {
       btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_RESTORE_SETTING));
       auto restore = global_config_->getInteger(KEY_RESTORE_SETTING);
+      btn->SetCheck(restore ? BST_CHECKED : BST_UNCHECKED);
+    }
+
+    // Disable Hotkey
+    {
+      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_HOTKEY));
+      auto restore = global_config_->getInteger(KEY_DISABLE_HOTKEY);
       btn->SetCheck(restore ? BST_CHECKED : BST_UNCHECKED);
     }
   }

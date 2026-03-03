@@ -16,6 +16,7 @@ bool Container::initialize()
     Container preset(USER_REGISTRY_PATH);
 
     res &= preset.set(KEY_RESTORE_SETTING, DWORD(1));
+    res &= preset.set(KEY_DISABLE_HOTKEY, DWORD(0));
     res &= preset.set(KEY_FAST_APPLY, DWORD(0));
     res &= preset.set(KEY_LAST_PRESET, DWORD(0));
   }

@@ -119,6 +119,11 @@ int CFilterKeySettingApp::ExitInstance()
     filter_keys.iRepeatMSec = DEFAULT_REPEAT_RATE;
     filter_keys.dwFlags     = WINDOW_FILTER_FLAG;
 
+    if (global.getInteger(KEY_DISABLE_HOTKEY)) {
+      filter_keys.dwFlags &=
+          ~(FKF_HOTKEYACTIVE | FKF_CONFIRMHOTKEY | FKF_HOTKEYSOUND);
+    }
+
     SystemParametersInfo(SPI_SETFILTERKEYS, sizeof(FILTERKEYS), &filter_keys,
                          SPIF_UPDATEINIFILE);
     global.set(KEY_LAST_PRESET, static_cast<DWORD>(0));
