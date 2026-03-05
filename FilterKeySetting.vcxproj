@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -45,7 +45,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
     <UseOfMfc>Static</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -53,7 +53,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
     <UseOfMfc>Static</UseOfMfc>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -97,6 +97,8 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <EnableUAC>true</EnableUAC>
+      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -120,6 +122,8 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <EnableUAC>true</EnableUAC>
+      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -147,6 +151,8 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <EnableUAC>true</EnableUAC>
+      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -158,6 +164,10 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
+    <PostBuildEvent>
+      <Command>if &quot;$(SIGN_PFX_PATH)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PATH not set. Skipping signing.) else if &quot;$(SIGN_PFX_PASSWORD)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PASSWORD not set. Skipping signing.) else (&quot;$(WindowsSdkDir)bin\$(WindowsTargetPlatformVersion)\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SIGN_PFX_PATH)&quot; /p &quot;$(SIGN_PFX_PASSWORD)&quot; /tr http://timestamp.digicert.com /td SHA256 &quot;$(TargetPath)&quot;) &amp; powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-ReleaseHash.ps1&quot; -TargetFile &quot;$(TargetPath)&quot;</Command>
+      <Message>Sign release binary (optional) and generate .sha256</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -174,6 +184,8 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <EnableUAC>true</EnableUAC>
+      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -185,21 +197,34 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
+    <PostBuildEvent>
+      <Command>if &quot;$(SIGN_PFX_PATH)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PATH not set. Skipping signing.) else if &quot;$(SIGN_PFX_PASSWORD)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PASSWORD not set. Skipping signing.) else (&quot;$(WindowsSdkDir)bin\$(WindowsTargetPlatformVersion)\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SIGN_PFX_PATH)&quot; /p &quot;$(SIGN_PFX_PASSWORD)&quot; /tr http://timestamp.digicert.com /td SHA256 &quot;$(TargetPath)&quot;) &amp; powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-ReleaseHash.ps1&quot; -TargetFile &quot;$(TargetPath)&quot;</Command>
+      <Message>Sign release binary (optional) and generate .sha256</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="DialogDebug.h" />
+    <ClInclude Include="DialogKeyBinding.h" />
     <ClInclude Include="DialogRename.h" />
     <ClInclude Include="FilterKeySetting.h" />
     <ClInclude Include="FilterKeySettingDefine.h" />
     <ClInclude Include="FilterKeySettingDlg.h" />
-    <ClInclude Include="FilterValue.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="UserFilterKey.hpp" />
+    <ClInclude Include="UserDefine.hpp" />
+    <ClInclude Include="UserDevLog.hpp" />
+    <ClInclude Include="UserKeyBinding.hpp" />
+    <ClInclude Include="UserMouseTracker.hpp" />
+    <ClInclude Include="UserOption.hpp" />
+    <ClInclude Include="UserPresetOSD.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DialogDebug.cpp" />
+    <ClCompile Include="DialogKeyBinding.cpp" />
     <ClCompile Include="DialogRename.cpp" />
-    <ClCompile Include="FilterValue.cpp" />
     <ClCompile Include="FilterKeySetting.cpp" />
     <ClCompile Include="FilterKeySettingDlg.cpp" />
     <ClCompile Include="pch.cpp">
@@ -208,6 +233,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="UserDevLog.cpp" />
+    <ClCompile Include="UserKeyBinding.cpp" />
+    <ClCompile Include="UserMouseTracker.cpp" />
+    <ClCompile Include="UserOption.cpp" />
+    <ClCompile Include="UserPresetOSD.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FilterKeySetting.rc" />

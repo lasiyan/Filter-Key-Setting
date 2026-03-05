@@ -2,7 +2,8 @@
 
 // DialogRename 대화 상자
 
-class DialogRename : public CDialogEx {
+class DialogRename : public CDialogEx
+{
   DECLARE_DYNAMIC(DialogRename)
 
  public:
@@ -12,7 +13,10 @@ class DialogRename : public CDialogEx {
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
-  enum { IDD = IDD_RENAME_PRESET };
+  enum
+  {
+    IDD = IDD_RENAME_PRESET
+  };
 #endif
 
  protected:
@@ -26,6 +30,6 @@ class DialogRename : public CDialogEx {
   afx_msg void OnEnSetfocusEditChangeName();
 
  public:
-  CString      new_name_;
-  BOOL         reset_once_;
+  CString new_name_;
+  BOOL    reset_once_;
 };

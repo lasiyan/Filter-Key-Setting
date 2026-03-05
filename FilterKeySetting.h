@@ -14,7 +14,8 @@
 // See FilterKeySetting.cpp for the implementation of this class
 //
 
-class CFilterKeySettingApp : public CWinApp {
+class CFilterKeySettingApp : public CWinApp
+{
  public:
   CFilterKeySettingApp();
 

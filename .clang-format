@@ -1,28 +1,50 @@
----
+﻿---
+  Language:        Cpp
+  
   BasedOnStyle: Google
-  IndentWidth: 2
-  AlignConsecutiveAssignments: true
-  AlignConsecutiveDeclarations: true
-  AlignConsecutiveMacros: AcrossEmptyLines
-  AllowShortBlocksOnASingleLine: Empty
-  AllowShortIfStatementsOnASingleLine: Never
-  AlwaysBreakBeforeMultilineStrings: false
-  IndentPPDirectives: BeforeHash
-  Cpp11BracedListStyle: false
-  DerivePointerAlignment: false
-  PointerAlignment: Left
+  # Google, LLVM, WebKit, Mozilla, Chromium, Microsoft, GNU, None (based on LLVM), Custom
+
+  ColumnLimit: 0      # 한 줄의 최대 길이 (0: 무제한)
+  TabWidth: 2         # 탭 너비
+  IndentWidth: 2      # 들여쓰기 너비
+  UseTab: Never       # 탭 사용 여부 (Always, Never, ForIndentation)
+
+  AlignConsecutiveAssignments: true           # 대입 연산자 정렬 (=)
+  AlignConsecutiveDeclarations: true          # 선언문 정렬 (int a = 0)
+  AlignConsecutiveMacros: AcrossEmptyLines    # 매크로 정렬
+  FixNamespaceComments: true                  # 네임스페이스 주석 정렬
+  AllowShortCaseLabelsOnASingleLine: true     # 한 줄에 짧은 Switch-Case문 허용
+  AllowShortEnumsOnASingleLine: true          # (버그) 한 줄에 짧은 열거형을 허용 (true, false)
+  AllowShortBlocksOnASingleLine: Empty        # 빈 블록 줄바꿈 (Never, Empty, Always)
+  AllowShortIfStatementsOnASingleLine: Never  # if문 줄바꿈 (Never, Empty, Always)
+  AlwaysBreakBeforeMultilineStrings: false    # 문자열 리터럴 사용 시 항시 줄바꿈
+  IndentPPDirectives: BeforeHash              # 전처리기 지시문 들여쓰기 (None, AfterHash, BeforeHash)
+  Cpp11BracedListStyle: false                 # C++11 초기화 리스트 스타일 사용 여부 (중괄호 띄어쓰기)
+  DerivePointerAlignment: false               # 포인터 정렬 (true: 포인터 정렬, false: 포인터 정렬 X)
+  PointerAlignment: Left                      # 포인터 정렬 방향 (Left, Right, Middle)
+  EmptyLineBeforeAccessModifier: LogicalBlock # 접근 지정자(private, public. etc.) 전에 항상 빈 줄 추가 (주석인 경우 무시)
+
+  # 중괄호 줄바꿈 (또는, allman or stroustrup)
   BreakBeforeBraces: Custom
   BraceWrapping:
-    AfterCaseLabel: false
-    AfterClass: false
-    AfterFunction: true
-    AfterNamespace: false
-    BeforeCatch:     true
-    BeforeElse:      true
+    AfterControlStatement:        Always  # if, while, for, switch 뒤에 줄바꿈
+    AfterCaseLabel:               true    # switch-case에서 case 뒤에 줄바꿈
+    BeforeCatch:                  true    # catch 뒤에 줄바꿈
+    BeforeElse:                   true    # else 뒤에 줄바꿈
+    BeforeWhile:                  false   # do-while 뒤에 줄바꿈
+    
+    AfterFunction:                true    # 함수 뒤에 줄바꿈
+    BeforeLambdaBody:             false   # 람다함수 뒤에 줄바꿈
+    AfterExternBlock:             false   # extern 뒤에 줄바꿈
+
+    AfterNamespace:               false   # namespace 뒤에 줄바꿈
+    AfterClass:                   true    # Class 뒤에 줄바꿈
+    AfterStruct:                  true    # struct 뒤에 줄바꿈
+    AfterUnion:                   true    # union 뒤에 줄바꿈
+    AfterEnum:                    true    # enum 뒤에 줄바꿈
 
   #BreakBeforeBraces: Linux
-  #InsertNewlineAtEOF: true
   #InsertBraces: true
 ...
-## version 2.1
+## version 3.0
 

@@ -43,7 +43,8 @@ BOOL DialogRename::OnInitDialog()
 
 void DialogRename::OnEnSetfocusEditChangeName()
 {
-  if (reset_once_) {
+  if (reset_once_)
+  {
     new_name_.Empty();
     reset_once_ = FALSE;
     UpdateData(FALSE);
@@ -54,7 +55,8 @@ void DialogRename::OnOK()
 {
   UpdateData(TRUE);
 
-  if (new_name_.IsEmpty()) {
+  if (new_name_.IsEmpty())
+  {
     AfxMessageBox(_T("변경할 이름을 입력해주세요"));
     return;
   }
