@@ -480,6 +480,11 @@ BOOL CFilterKeySettingDlg::PreTranslateMessage(MSG* pMsg)
     return TRUE;
   }
 
+  if (pMsg->message == WM_SYSCHAR)
+  {
+    return TRUE;
+  }
+
   if (pMsg->message == WM_KEYDOWN || pMsg->message == WM_SYSKEYDOWN)
   {
     if (pMsg->wParam == VK_MENU || pMsg->wParam == VK_LMENU || pMsg->wParam == VK_RMENU)
@@ -489,6 +494,8 @@ BOOL CFilterKeySettingDlg::PreTranslateMessage(MSG* pMsg)
         alt_hotkey_view_ = true;
         RefreshAllPresetButtonCaptions();
       }
+
+      return TRUE;
     }
 
     // ESC, Enter 키 이벤트 제거
