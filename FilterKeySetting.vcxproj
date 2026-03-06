@@ -165,7 +165,14 @@
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>if &quot;$(SIGN_PFX_PATH)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PATH not set. Skipping signing.) else if &quot;$(SIGN_PFX_PASSWORD)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PASSWORD not set. Skipping signing.) else (&quot;$(WindowsSdkDir)bin\$(WindowsTargetPlatformVersion)\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SIGN_PFX_PATH)&quot; /p &quot;$(SIGN_PFX_PASSWORD)&quot; /tr http://timestamp.digicert.com /td SHA256 &quot;$(TargetPath)&quot;) &amp; powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-ReleaseHash.ps1&quot; -TargetFile &quot;$(TargetPath)&quot;</Command>
+      <Command>if &quot;$(SIGN_PFX_PATH)&quot;==&quot;&quot; (
+  echo [CodeSign] SIGN_PFX_PATH not set. Skipping signing.
+) else if &quot;$(SIGN_PFX_PASSWORD)&quot;==&quot;&quot; (
+  echo [CodeSign] SIGN_PFX_PASSWORD not set. Skipping signing.
+) else (
+  &quot;$(WindowsSdkDir)bin\$(WindowsTargetPlatformVersion)\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SIGN_PFX_PATH)&quot; /p &quot;$(SIGN_PFX_PASSWORD)&quot; /tr http://timestamp.digicert.com /td SHA256 &quot;$(TargetPath)&quot;
+)
+powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-ReleaseHash.ps1&quot; -TargetFile &quot;$(TargetPath)&quot;</Command>
       <Message>Sign release binary (optional) and generate .sha256</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -198,7 +205,14 @@
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>if &quot;$(SIGN_PFX_PATH)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PATH not set. Skipping signing.) else if &quot;$(SIGN_PFX_PASSWORD)&quot;==&quot;&quot; (echo [CodeSign] SIGN_PFX_PASSWORD not set. Skipping signing.) else (&quot;$(WindowsSdkDir)bin\$(WindowsTargetPlatformVersion)\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SIGN_PFX_PATH)&quot; /p &quot;$(SIGN_PFX_PASSWORD)&quot; /tr http://timestamp.digicert.com /td SHA256 &quot;$(TargetPath)&quot;) &amp; powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-ReleaseHash.ps1&quot; -TargetFile &quot;$(TargetPath)&quot;</Command>
+      <Command>if &quot;$(SIGN_PFX_PATH)&quot;==&quot;&quot; (
+  echo [CodeSign] SIGN_PFX_PATH not set. Skipping signing.
+) else if &quot;$(SIGN_PFX_PASSWORD)&quot;==&quot;&quot; (
+  echo [CodeSign] SIGN_PFX_PASSWORD not set. Skipping signing.
+) else (
+  &quot;$(WindowsSdkDir)bin\$(WindowsTargetPlatformVersion)\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SIGN_PFX_PATH)&quot; /p &quot;$(SIGN_PFX_PASSWORD)&quot; /tr http://timestamp.digicert.com /td SHA256 &quot;$(TargetPath)&quot;
+)
+powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-ReleaseHash.ps1&quot; -TargetFile &quot;$(TargetPath)&quot;</Command>
       <Message>Sign release binary (optional) and generate .sha256</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
