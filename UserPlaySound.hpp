@@ -9,12 +9,14 @@
 
 namespace UserPlaySound {
 
-inline bool TryPlayEmbeddedWav()
+inline bool TryPlayEmbeddedWav(const int preset)
 {
+  const int resource_id = PRESET_IS_OFF(preset) ? IDR_NOTIFY_OFF_WAV : IDR_NOTIFY_ON_WAV;
+
   HMODULE module = AfxGetResourceHandle();
-  HRSRC   res    = ::FindResource(module, MAKEINTRESOURCE(IDR_NOTIFY_WAV), _T("WAVE"));
+  HRSRC   res    = ::FindResource(module, MAKEINTRESOURCE(resource_id), _T("WAVE"));
   if (!res)
-    res = ::FindResource(module, MAKEINTRESOURCE(IDR_NOTIFY_WAV), _T("WAV"));
+    res = ::FindResource(module, MAKEINTRESOURCE(resource_id), _T("WAV"));
   if (!res)
     return false;
 
@@ -32,12 +34,12 @@ inline bool TryPlayEmbeddedWav()
                       SND_MEMORY | SND_ASYNC | SND_NODEFAULT) == TRUE);
 }
 
-inline void PlayPresetAppliedSound()
+inline void PlayPresetAppliedSound(const int preset)
 {
   if (GLOBAL_OPTION.getInteger(KEY_MUTE_SOUND, 0) != 0)
     return;
 
-  if (!TryPlayEmbeddedWav())
+  if (!TryPlayEmbeddedWav(preset))
     ::MessageBeep(MB_ICONERROR);
 }
 

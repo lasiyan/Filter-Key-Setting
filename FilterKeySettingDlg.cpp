@@ -237,7 +237,7 @@ void CFilterKeySettingDlg::OnTimer(UINT_PTR nIDEvent)
 
     DevLog::Write(_T("Background ESC detected. Turning preset off."));
     ResetEditMode();
-    ActivePreset(PRESET_OFF, FALSE);
+    ActivePreset(PRESET_OFF, FALSE, TRUE);
     return;
   }
 
@@ -301,7 +301,7 @@ LRESULT CFilterKeySettingDlg::OnTrayIcon(WPARAM wParam, LPARAM lParam)
       {
         const int selected_preset = static_cast<int>(cmd - IDM_TRAY_PRESET_BASE);
         last_selected_            = selected_preset;
-        ActivePreset(selected_preset, FALSE);
+        ActivePreset(selected_preset, FALSE, TRUE);
       }
 
       PostMessage(WM_NULL);
@@ -338,7 +338,7 @@ LRESULT CFilterKeySettingDlg::OnMouseTrackerTriggered(WPARAM wParam, LPARAM lPar
 
   DevLog::Writef(_T("Mouse tracker trigger received: type=%u"), static_cast<UINT>(wParam));
   ResetEditMode();
-  ActivePreset(PRESET_OFF, FALSE);
+  ActivePreset(PRESET_OFF, FALSE, TRUE);
   return 0;
 }
 
@@ -842,7 +842,7 @@ void CFilterKeySettingDlg::ActivePreset(const int preset, BOOL alert, BOOL beep)
     UserPresetOSD::ShowPresetIndex(target_preset);
 
   if (ok && beep)
-    UserPlaySound::PlayPresetAppliedSound();
+    UserPlaySound::PlayPresetAppliedSound(target_preset);
 
   if (alert)
   {
