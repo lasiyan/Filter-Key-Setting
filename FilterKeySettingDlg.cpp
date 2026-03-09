@@ -97,6 +97,11 @@ BOOL CFilterKeySettingDlg::OnInitDialog()
   UpdateOption(FALSE);
   ValidateActiveHotkeysAndAlert();
 
+  // Tooltip
+  tooltip_.Initialize(this);
+  for (int preset = PRESET_OFF; preset < preset_count_; ++preset)
+    tooltip_.RegistPreset(GetDlgItem(GetPresetButtonControlId(preset)));
+
   // Kill Focus Edit control
   OnEnKillFocusTesting();
 
@@ -457,6 +462,8 @@ void CFilterKeySettingDlg::RefreshAllPresetButtonCaptions()
 
 BOOL CFilterKeySettingDlg::PreTranslateMessage(MSG* pMsg)
 {
+  tooltip_.RelayEvent(pMsg);
+
   const auto IsCtrlAltF12 = [](const MSG* msg) -> bool {
     if (!msg)
       return false;
@@ -542,14 +549,15 @@ void CFilterKeySettingDlg::OnBnClickedCheckEditMode()
     else
     {
       const int target_preset_for_apply = PRESET_IS_ON(preset_before_edit_) ? preset_before_edit_ : last_selected_;
-      if (!SaveCurrentEditingValues(target_preset_for_apply))
+      bool      values_changed          = false;
+      if (!SaveCurrentEditingValues(target_preset_for_apply, &values_changed))
       {
         if (auto edit_mode_button = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE)); edit_mode_button)
           edit_mode_button->SetCheck(BST_CHECKED);
         return;
       }
 
-      ActivePreset(target_preset_for_apply, TRUE);
+      ActivePreset(target_preset_for_apply, values_changed ? TRUE : FALSE);
       preset_before_edit_ = PRESET_OFF;
     }
 
@@ -1451,12 +1459,16 @@ bool CFilterKeySettingDlg::IsDialogForeground() const
   return (::IsChild(owner, fg) == TRUE);
 }
 
-bool CFilterKeySettingDlg::SaveCurrentEditingValues(const int target_preset)
+bool CFilterKeySettingDlg::SaveCurrentEditingValues(const int target_preset, bool* changed)
 {
+  if (changed)
+    *changed = false;
+
   if (!PRESET_IS_ON(target_preset))
     return true;
 
   PresetOption option(target_preset);
+  bool         has_changed = false;
 
   const auto CheckAndSet = [&](int control_id, auto&& key,
                                DWORD min_value, DWORD max_value,
@@ -1481,6 +1493,9 @@ bool CFilterKeySettingDlg::SaveCurrentEditingValues(const int target_preset)
       return false;
     }
 
+    if (option.getInteger(key, v) != v)
+      has_changed = true;
+
     option.set(key, v);
     return true;
   };
@@ -1491,6 +1506,9 @@ bool CFilterKeySettingDlg::SaveCurrentEditingValues(const int target_preset)
     return false;
   if (!CheckAndSet(IDC_EDIT_REPEAT_RATE, KEY_REPEAT_RATE, 0, 1000, _T("Repeat Rate")))
     return false;
+
+  if (changed)
+    *changed = has_changed;
 
   return true;
 }

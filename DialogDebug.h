@@ -2,6 +2,7 @@
 
 #include "UserDevLog.hpp"
 #include "UserOption.hpp"
+#include "UserTooltip.hpp"
 
 class DialogDebug : public CDialogEx, public DevLogSink
 {
@@ -33,11 +34,11 @@ class DialogDebug : public CDialogEx, public DevLogSink
   afx_msg void OnBnClickedCheckOffUseWindowsDefault();
   afx_msg void OnBnClickedCheckEnablePresetOsd();
   afx_msg void OnCbnSelchangeComboPresetOsdCorner();
+  afx_msg void OnCbnSelchangeComboDbgPresetCount();
   afx_msg void OnCbnSelchangeComboPresetOsdSize();
   afx_msg void OnBnClickedRadioPresetOsdKeep();
   afx_msg void OnBnClickedRadioPresetOsd3sec();
   afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
-  afx_msg void OnBnClickedBtnDbgApplyPresetCount();
 
   DECLARE_MESSAGE_MAP()
 
@@ -50,6 +51,8 @@ class DialogDebug : public CDialogEx, public DevLogSink
 
  private:
   CString log_text_;
+  Tooltip tooltip_;
+  bool    preset_count_combo_updating_ = false;
 
   static constexpr int kLogMaxChars   = 200000;
   static constexpr int kTrimKeepChars = 120000;

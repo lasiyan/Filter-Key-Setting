@@ -4,6 +4,7 @@
 #include "FilterKeySetting.h"
 #include "UserPresetOSD.hpp"
 #include "afxdialogex.h"
+#include <shellapi.h>
 // clang-format on
 
 IMPLEMENT_DYNAMIC(DialogDebug, CDialogEx)
@@ -31,11 +32,11 @@ ON_BN_CLICKED(IDC_CHECK_SYNC_FILTERKEY, &DialogDebug::OnBnClickedCheckSyncFilter
 ON_BN_CLICKED(IDC_CHECK_MUTE_SOUND, &DialogDebug::OnBnClickedCheckMuteSound)
 ON_BN_CLICKED(IDC_CHECK_OFF_USE_WINDOWS_DEFAULT, &DialogDebug::OnBnClickedCheckOffUseWindowsDefault)
 ON_BN_CLICKED(IDC_CHECK_ENABLE_PRESET_OSD, &DialogDebug::OnBnClickedCheckEnablePresetOsd)
+ON_CBN_SELCHANGE(IDC_COMBO_DBG_PRESET_COUNT, &DialogDebug::OnCbnSelchangeComboDbgPresetCount)
 ON_CBN_SELCHANGE(IDC_COMBO_PRESET_OSD_CORNER, &DialogDebug::OnCbnSelchangeComboPresetOsdCorner)
 ON_CBN_SELCHANGE(IDC_COMBO_PRESET_OSD_SIZE, &DialogDebug::OnCbnSelchangeComboPresetOsdSize)
 ON_BN_CLICKED(IDC_RADIO_PRESET_OSD_KEEP, &DialogDebug::OnBnClickedRadioPresetOsdKeep)
 ON_BN_CLICKED(IDC_RADIO_PRESET_OSD_3SEC, &DialogDebug::OnBnClickedRadioPresetOsd3sec)
-ON_BN_CLICKED(IDC_BTN_DBG_APPLY_PRESET_COUNT, &DialogDebug::OnBnClickedBtnDbgApplyPresetCount)
 END_MESSAGE_MAP()
 
 BOOL DialogDebug::OnInitDialog()
@@ -51,11 +52,16 @@ BOOL DialogDebug::OnInitDialog()
 
   UserPresetOSD::InitializeOptionUI(this);
 
+  // Tooltip
+  tooltip_.Initialize(this);
+
   return TRUE;
 }
 
 BOOL DialogDebug::PreTranslateMessage(MSG* pMsg)
 {
+  tooltip_.RelayEvent(pMsg);
+
   if ((pMsg->message == WM_KEYDOWN || pMsg->message == WM_SYSKEYDOWN) &&
       (pMsg->wParam == 'A' || pMsg->wParam == 'a'))
   {
@@ -140,6 +146,8 @@ void DialogDebug::InitializeOptions()
   auto* combo = reinterpret_cast<CComboBox*>(GetDlgItem(IDC_COMBO_DBG_PRESET_COUNT));
   if (combo)
   {
+    preset_count_combo_updating_ = true;
+
     combo->ResetContent();
     for (int value = PRESET_MIN_COUNT; value <= PRESET_MAX_COUNT; ++value)
     {
@@ -155,6 +163,8 @@ void DialogDebug::InitializeOptions()
       current_count = PRESET_MAX_COUNT;
 
     combo->SetCurSel(current_count - PRESET_MIN_COUNT);
+
+    preset_count_combo_updating_ = false;
   }
 
   auto* sync = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_SYNC_FILTERKEY));
@@ -258,6 +268,70 @@ void DialogDebug::OnCbnSelchangeComboPresetOsdSize()
   NotifyOptionsChanged();
 }
 
+void DialogDebug::OnCbnSelchangeComboDbgPresetCount()
+{
+  if (preset_count_combo_updating_)
+    return;
+
+  auto* combo = reinterpret_cast<CComboBox*>(GetDlgItem(IDC_COMBO_DBG_PRESET_COUNT));
+  if (!combo)
+    return;
+
+  const int selected = combo->GetCurSel();
+  if (selected == CB_ERR)
+    return;
+
+  int current_count = static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_COUNT, PRESET_MIN_COUNT));
+  if (current_count < PRESET_MIN_COUNT)
+    current_count = PRESET_MIN_COUNT;
+  if (current_count > PRESET_MAX_COUNT)
+    current_count = PRESET_MAX_COUNT;
+
+  const int selected_count = PRESET_MIN_COUNT + selected;
+  if (selected_count == current_count)
+    return;
+
+  CString message;
+  message.Format(_T("프리셋 개수를 %d개로 변경하려면 프로그램 재시작이 필요합니다.\r\n"
+                    "지금 다시 시작하시겠습니까?"),
+                 selected_count);
+
+  const int answer = AfxMessageBox(message, MB_ICONQUESTION | MB_YESNO);
+  if (answer != IDYES)
+  {
+    preset_count_combo_updating_ = true;
+    combo->SetCurSel(current_count - PRESET_MIN_COUNT);
+    preset_count_combo_updating_ = false;
+    return;
+  }
+
+  GLOBAL_OPTION.set(KEY_PRESET_COUNT, static_cast<DWORD>(selected_count));
+  DevLog::Writef(_T("Option changed: preset_count = %d (restart accepted)"), selected_count);
+
+  TCHAR exe_path[MAX_PATH] = {};
+  if (::GetModuleFileName(nullptr, exe_path, _countof(exe_path)) == 0)
+  {
+    AfxMessageBox(_T("실행 파일 경로를 확인할 수 없어 재시작하지 못했습니다."));
+    return;
+  }
+
+  HINSTANCE launch_result = ::ShellExecute(GetSafeHwnd(), _T("open"), exe_path, nullptr, nullptr, SW_SHOWNORMAL);
+  if (reinterpret_cast<INT_PTR>(launch_result) <= 32)
+  {
+    AfxMessageBox(_T("프로그램 재시작에 실패했습니다."));
+    return;
+  }
+
+  if (CWnd* parent = GetParent(); parent && ::IsWindow(parent->GetSafeHwnd()))
+  {
+    parent->PostMessage(WM_CLOSE);
+  }
+  else
+  {
+    AfxGetMainWnd()->PostMessage(WM_CLOSE);
+  }
+}
+
 void DialogDebug::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
   CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
@@ -267,27 +341,4 @@ void DialogDebug::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
     UserPresetOSD::SaveOptionFromUI(this);
     NotifyOptionsChanged();
   }
-}
-
-void DialogDebug::OnBnClickedBtnDbgApplyPresetCount()
-{
-  auto* combo = reinterpret_cast<CComboBox*>(GetDlgItem(IDC_COMBO_DBG_PRESET_COUNT));
-  if (!combo)
-    return;
-
-  int selected = combo->GetCurSel();
-  if (selected == CB_ERR)
-  {
-    AfxMessageBox(_T("프리셋 개수를 먼저 선택하세요."));
-    return;
-  }
-
-  const int preset_count = PRESET_MIN_COUNT + selected;
-  GLOBAL_OPTION.set(KEY_PRESET_COUNT, static_cast<DWORD>(preset_count));
-
-  CString msg;
-  msg.Format(_T("프리셋 개수 %d개로 저장되었습니다. 적용하려면 프로그램을 다시 시작하세요."), preset_count);
-  AfxMessageBox(msg);
-
-  DevLog::Writef(_T("Option changed: preset_count = %d (restart required)"), preset_count);
 }

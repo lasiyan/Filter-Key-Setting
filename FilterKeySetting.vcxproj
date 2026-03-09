@@ -234,6 +234,7 @@ powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-Rel
     <ClInclude Include="UserMouseTracker.hpp" />
     <ClInclude Include="UserOption.hpp" />
     <ClInclude Include="UserPresetOSD.hpp" />
+    <ClInclude Include="UserTooltip.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DialogDebug.cpp" />

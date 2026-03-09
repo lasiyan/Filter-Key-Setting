@@ -10,6 +10,7 @@
 #include "FilterKeySettingDefine.h"
 #include "UserMouseTracker.hpp"
 #include "UserOption.hpp"
+#include "UserTooltip.hpp"
 
 class DialogDebug;
 
@@ -94,7 +95,7 @@ class CFilterKeySettingDlg : public CDialogEx
   UINT GetPresetButtonControlId(const int preset) const;
   bool IsEditModeChecked() const;
   bool IsDialogForeground() const;
-  bool SaveCurrentEditingValues(const int target_preset);
+  bool SaveCurrentEditingValues(const int target_preset, bool* changed = nullptr);
 
  private:
   int last_selected_      = PRESET_OFF;
@@ -120,6 +121,7 @@ class CFilterKeySettingDlg : public CDialogEx
   bool                                  opening_toggle_hotkey_dialog_ = false;
   bool                                  bg_esc_watch_active_          = false;
   bool                                  bg_esc_prev_down_             = false;
+  Tooltip                               tooltip_;
   MouseTracker                          mouse_tracker_;
   DialogDebug*                          debug_dialog_ = nullptr;
 };
