@@ -1,7 +1,7 @@
 ﻿// clang-format off
 #include "pch.h"
 #include "UserPresetOSD.hpp"
-#include "resource.h"
+#include "UserOption.hpp"
 // clang-format on
 
 namespace {
@@ -213,12 +213,16 @@ PresetOSDWindow& OSDWindow()
   return wnd;
 }
 
+}  // namespace
+
+namespace UserPresetOSD {
+
 int ClampPosition(int value)
 {
-  if (value < static_cast<int>(UserPresetOSD::Corner::TopLeft))
-    return static_cast<int>(UserPresetOSD::Corner::TopLeft);
-  if (value > static_cast<int>(UserPresetOSD::Corner::BottomRight))
-    return static_cast<int>(UserPresetOSD::Corner::BottomRight);
+  if (value < static_cast<int>(Corner::TopLeft))
+    return static_cast<int>(Corner::TopLeft);
+  if (value > static_cast<int>(Corner::BottomRight))
+    return static_cast<int>(Corner::BottomRight);
   return value;
 }
 
@@ -239,9 +243,30 @@ int ClampSizePercent(int value)
     return 10;
   return value;
 }
-}  // namespace
 
-namespace UserPresetOSD {
+namespace {
+struct OsdOptions
+{
+  bool   enabled;
+  Corner corner;
+  int    alpha;
+  bool   keep_visible;
+  UINT   hide_ms;
+  int    size_percent;
+};
+
+OsdOptions LoadOsdOptions()
+{
+  OsdOptions opts   = {};
+  opts.enabled      = (GLOBAL_OPTION.getInteger(KEY_ENABLE_PRESET_OSD, 0) != 0);
+  opts.corner       = static_cast<Corner>(ClampPosition(static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_CORNER, static_cast<DWORD>(Corner::BottomRight)))));
+  opts.alpha        = ClampAlpha(static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_ALPHA, 220)));
+  opts.keep_visible = (GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_KEEP_VISIBLE, 0) != 0);
+  opts.hide_ms      = opts.keep_visible ? 0u : 3000u;
+  opts.size_percent = ClampSizePercent(static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_SIZE, 5)));
+  return opts;
+}
+}  // namespace
 
 void InitializeOptionDefaults()
 {
@@ -252,127 +277,11 @@ void InitializeOptionDefaults()
   GLOBAL_OPTION.setInit(KEY_PRESET_OSD_SIZE, static_cast<DWORD>(5));
 }
 
-void InitializeOptionUI(CWnd* owner)
-{
-  if (!owner)
-    return;
-
-  if (auto* check = reinterpret_cast<CButton*>(owner->GetDlgItem(IDC_CHECK_ENABLE_PRESET_OSD)); check)
-    check->SetCheck(GLOBAL_OPTION.getInteger(KEY_ENABLE_PRESET_OSD, 0) ? BST_CHECKED : BST_UNCHECKED);
-
-  if (auto* combo = reinterpret_cast<CComboBox*>(owner->GetDlgItem(IDC_COMBO_PRESET_OSD_CORNER)); combo)
-  {
-    combo->ResetContent();
-    combo->AddString(_T("좌상단"));
-    combo->AddString(_T("우상단"));
-    combo->AddString(_T("좌하단"));
-    combo->AddString(_T("우하단"));
-
-    const int idx = ClampPosition(static_cast<int>(GLOBAL_OPTION.getInteger(
-        KEY_PRESET_OSD_CORNER, static_cast<DWORD>(Corner::BottomRight))));
-    combo->SetCurSel(idx);
-  }
-
-  if (auto* slider = reinterpret_cast<CSliderCtrl*>(owner->GetDlgItem(IDC_SLIDER_PRESET_OSD_ALPHA)); slider)
-  {
-    slider->SetRange(0, 255);
-    slider->SetTicFreq(15);
-    slider->SetPos(
-        ClampAlpha(static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_ALPHA, 220))));
-  }
-
-  if (auto* combo = reinterpret_cast<CComboBox*>(owner->GetDlgItem(IDC_COMBO_PRESET_OSD_SIZE)); combo)
-  {
-    combo->ResetContent();
-    for (int value = 1; value <= 10; ++value)
-    {
-      CString item;
-      item.Format(_T("%d"), value);
-      combo->AddString(item);
-    }
-
-    const int size_percent = ClampSizePercent(
-        static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_SIZE, 5)));
-    combo->SetCurSel(size_percent - 1);
-  }
-
-  const bool keep = (GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_KEEP_VISIBLE, 0) != 0);
-  if (auto* keep_radio = reinterpret_cast<CButton*>(owner->GetDlgItem(IDC_RADIO_PRESET_OSD_KEEP)); keep_radio)
-    keep_radio->SetCheck(keep ? BST_CHECKED : BST_UNCHECKED);
-  if (auto* auto_radio = reinterpret_cast<CButton*>(owner->GetDlgItem(IDC_RADIO_PRESET_OSD_3SEC)); auto_radio)
-    auto_radio->SetCheck(keep ? BST_UNCHECKED : BST_CHECKED);
-}
-
-void LayoutOptionUI(CWnd* owner)
-{
-  UNREFERENCED_PARAMETER(owner);
-}
-
-void SaveOptionFromUI(CWnd* owner)
-{
-  if (!owner)
-    return;
-
-  bool enabled = false;
-  if (auto* check = reinterpret_cast<CButton*>(owner->GetDlgItem(IDC_CHECK_ENABLE_PRESET_OSD)); check)
-    enabled = (check->GetCheck() == BST_CHECKED);
-
-  int corner = static_cast<int>(Corner::BottomRight);
-  if (auto* combo = reinterpret_cast<CComboBox*>(owner->GetDlgItem(IDC_COMBO_PRESET_OSD_CORNER)); combo)
-  {
-    const int sel = combo->GetCurSel();
-    if (sel != CB_ERR)
-      corner = ClampPosition(sel);
-  }
-
-  int alpha = 220;
-  if (auto* slider = reinterpret_cast<CSliderCtrl*>(owner->GetDlgItem(IDC_SLIDER_PRESET_OSD_ALPHA)); slider)
-    alpha = ClampAlpha(slider->GetPos());
-
-  bool keep_visible = false;
-  if (auto* keep_radio = reinterpret_cast<CButton*>(owner->GetDlgItem(IDC_RADIO_PRESET_OSD_KEEP)); keep_radio)
-    keep_visible = (keep_radio->GetCheck() == BST_CHECKED);
-
-  int size_percent = 5;
-  if (auto* combo = reinterpret_cast<CComboBox*>(owner->GetDlgItem(IDC_COMBO_PRESET_OSD_SIZE)); combo)
-  {
-    const int sel = combo->GetCurSel();
-    if (sel != CB_ERR)
-      size_percent = sel + 1;
-  }
-  size_percent = ClampSizePercent(size_percent);
-
-  GLOBAL_OPTION.set(KEY_ENABLE_PRESET_OSD, static_cast<DWORD>(enabled));
-  GLOBAL_OPTION.set(KEY_PRESET_OSD_CORNER, static_cast<DWORD>(corner));
-  GLOBAL_OPTION.set(KEY_PRESET_OSD_ALPHA, static_cast<DWORD>(alpha));
-  GLOBAL_OPTION.set(KEY_PRESET_OSD_KEEP_VISIBLE, static_cast<DWORD>(keep_visible));
-  GLOBAL_OPTION.set(KEY_PRESET_OSD_SIZE, static_cast<DWORD>(size_percent));
-
-  if (!enabled)
-  {
-    if (OSDWindow().IsShowing())
-      OSDWindow().ShowWindow(SW_HIDE);
-    return;
-  }
-
-  const UINT hide_ms = keep_visible ? 0u : 3000u;
-  OSDWindow().ReapplyCurrent(
-      static_cast<BYTE>(alpha), static_cast<Corner>(corner), size_percent, hide_ms, keep_visible);
-}
-
 void ShowPresetIndex(int preset_index)
 {
-  if (GLOBAL_OPTION.getInteger(KEY_ENABLE_PRESET_OSD, 0) == 0)
+  const auto opts = LoadOsdOptions();
+  if (!opts.enabled)
     return;
-
-  const int corner = ClampPosition(static_cast<int>(GLOBAL_OPTION.getInteger(
-      KEY_PRESET_OSD_CORNER, static_cast<DWORD>(Corner::BottomRight))));
-  const int alpha  = ClampAlpha(static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_ALPHA, 220)));
-
-  const bool keep_visible = (GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_KEEP_VISIBLE, 0) != 0);
-  const UINT hide_ms      = keep_visible ? 0u : 3000u;
-  const int  size_percent = ClampSizePercent(
-      static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_OSD_SIZE, 5)));
 
   if (preset_index < 0)
     preset_index = 0;
@@ -382,8 +291,20 @@ void ShowPresetIndex(int preset_index)
   CString text;
   text.Format(_T("%d"), preset_index);
 
-  OSDWindow().ShowText(
-      text, static_cast<BYTE>(alpha), static_cast<Corner>(corner), size_percent, hide_ms);
+  OSDWindow().ShowText(text, static_cast<BYTE>(opts.alpha), opts.corner, opts.size_percent, opts.hide_ms);
+}
+
+void RefreshDisplay()
+{
+  const auto opts = LoadOsdOptions();
+  if (!opts.enabled)
+  {
+    if (OSDWindow().IsShowing())
+      OSDWindow().ShowWindow(SW_HIDE);
+    return;
+  }
+
+  OSDWindow().ReapplyCurrent(static_cast<BYTE>(opts.alpha), opts.corner, opts.size_percent, opts.hide_ms, true);
 }
 
 }  // namespace UserPresetOSD

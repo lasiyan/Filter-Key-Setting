@@ -12,11 +12,13 @@ class OptionBase
  public:
   virtual ~OptionBase();
 
+  // Write
   template <typename T>
-  bool set(const CString& key, const T& value, bool if_not_exist = false);
+  bool set(const CString& key, const T& value);
   template <typename T>
   bool setInit(const CString& key, const T& value);
 
+  // Read
   DWORD   getInteger(const CString& key, DWORD default_value = 0);
   CString getString(const CString& key, const CString& default_value = CString());
 

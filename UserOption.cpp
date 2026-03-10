@@ -23,6 +23,9 @@ bool InitializeOptionValues()
     res &= GLOBAL_OPTION.setInit(KEY_ENABLE_MOUSE_DBLCLICK_TRACKER, true);
     res &= GLOBAL_OPTION.setInit(KEY_ENABLE_MOUSE_MOVE_TRACKER, false);
     res &= GLOBAL_OPTION.setInit(KEY_DISABLE_WITH_ESC, false);
+    res &= GLOBAL_OPTION.setInit(KEY_PROCESS_OFF_ENABLED, false);
+    res &= GLOBAL_OPTION.setInit(KEY_PROCESS_OFF_NAME, CString());
+    res &= GLOBAL_OPTION.setInit(KEY_PROCESS_OFF_RESTORE, false);
     res &= GLOBAL_OPTION.setInit(KEY_MUTE_SOUND, false);
     res &= GLOBAL_OPTION.setInit(KEY_SYNC_FILTERKEY, false);
     res &= GLOBAL_OPTION.setInit(KEY_ENABLE_PRESET_OSD, false);
@@ -121,7 +124,7 @@ OptionBase::~OptionBase()
 }
 
 template <typename T>
-bool OptionBase::set(const CString& key, const T& value, bool if_not_exist)
+bool OptionBase::set(const CString& key, const T& value)
 {
   using U = std::decay_t<T>;
 
@@ -148,10 +151,10 @@ bool OptionBase::set(const CString& key, const T& value, bool if_not_exist)
 
   return false;
 }
-template bool OptionBase::set<CString>(const CString& key, const CString& value, bool if_not_exist);
-template bool OptionBase::set<int>(const CString& key, const int& value, bool if_not_exist);
-template bool OptionBase::set<DWORD>(const CString& key, const DWORD& value, bool if_not_exist);
-template bool OptionBase::set<bool>(const CString& key, const bool& value, bool if_not_exist);
+template bool OptionBase::set<CString>(const CString& key, const CString& value);
+template bool OptionBase::set<int>(const CString& key, const int& value);
+template bool OptionBase::set<DWORD>(const CString& key, const DWORD& value);
+template bool OptionBase::set<bool>(const CString& key, const bool& value);
 
 template <typename T>
 bool OptionBase::setInit(const CString& key, const T& value)
@@ -186,10 +189,14 @@ bool OptionBase::setInit(const CString& key, const T& value)
 
 DWORD OptionBase::getInteger(const CString& key, DWORD default_value)
 {
+  DWORD type  = 0;
   DWORD value = default_value;
   DWORD size  = sizeof(value);
 
-  RegQueryValueEx(registry_, key, NULL, NULL, (LPBYTE)&value, &size);
+  LONG result = RegQueryValueEx(registry_, key, NULL, &type, (LPBYTE)&value, &size);
+  if (result != ERROR_SUCCESS || type != REG_DWORD)
+    return default_value;
+
   return value;
 }
 

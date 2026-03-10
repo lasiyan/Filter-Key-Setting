@@ -5,11 +5,10 @@
 class FilterKey
 {
  public:
+  // Backup
   static bool BackupCurrentFilterKeysToOption()
   {
-    FILTERKEYS fk = {
-      sizeof(FILTERKEYS),
-    };
+    FILTERKEYS fk = { sizeof(FILTERKEYS) };
 
     if (!SystemParametersInfo(SPI_GETFILTERKEYS, sizeof(FILTERKEYS), &fk, 0))
       return false;
@@ -30,13 +29,13 @@ class FilterKey
     return BackupCurrentFilterKeysToOption();
   }
 
-  static bool ActivePreset(const int preset)
+  // Apply
+  static bool ActivatePreset(const int preset)
   {
-    // Get preset option
     FILTERKEYS fk = { sizeof(FILTERKEYS) };
 
     const bool off_uses_windows_default =
-        (GLOBAL_OPTION.getInteger(KEY_OFF_USE_WINDOWS_DEFAULT, true) != 0);
+        (GLOBAL_OPTION.getInteger(KEY_OFF_USE_WINDOWS_DEFAULT, 1) != 0);
 
     if (PRESET_IS_OFF(preset) && !off_uses_windows_default)
     {
@@ -57,23 +56,17 @@ class FilterKey
       fk.dwFlags     = preset_option.getInteger(KEY_FILTER_FLAG);
     }
 
-    // Check disable Hotkey
-    // if (PRESET_IS_OFF(preset) && GLOBAL_OPTION.getInteger(KEY_DISABLE_HOTKEY))
-    //  fk.dwFlags &= ~(FKF_HOTKEYACTIVE | FKF_CONFIRMHOTKEY | FKF_HOTKEYSOUND);
-
-    // Apply filter key option
     auto flag = SPIF_UPDATEINIFILE;
 
     if (GLOBAL_OPTION.getInteger(KEY_SYNC_FILTERKEY, 0) != 0)
       flag |= SPIF_SENDCHANGE;
+
     if (SystemParametersInfo(SPI_SETFILTERKEYS, sizeof(FILTERKEYS), &fk, flag))
     {
       GLOBAL_OPTION.set(KEY_LAST_PRESET, static_cast<DWORD>(preset));
       return true;
     }
-    else
-    {
-      return false;
-    }
+
+    return false;
   }
 };

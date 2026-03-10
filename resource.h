@@ -2,71 +2,77 @@
 // Microsoft Visual C++에서 생성한 포함 파일입니다.
 // FilterKeySetting.rc에서 사용되고 있습니다.
 //
-#define IDR_MAINFRAME                        100
-#define IDD_FILTERKEYSETTING_DIALOG          101
-#define IDD_RENAME_PRESET                    102
-#define IDD_KEY_BINDING                      103
-#define IDD_DEBUG_CONSOLE                    104
-#define IDR_NOTIFY_ON_WAV                    105
-#define IDR_NOTIFY_OFF_WAV                   106
-#define IDC_BTN_PRESET_OFF                   1000
-#define IDC_BTN_PRESET1                      1001
-#define IDC_BTN_PRESET2                      1002
-#define IDC_EDIT_ACCEPT_DELAY                1004
-#define IDC_EDIT_REPEAT_DELAY                1005
-#define IDC_EDIT_REPEAT_RATE                 1006
-#define IDC_EDIT_TESTING                     1007
-#define IDC_EDIT_CHANGE_NAME                 1008
-#define IDC_CHECK_EDIT_MODE                  1009
-#define IDC_CHECK_RESTORE_SETTING            1010
-#define IDC_CHECK_DISABLE_HOTKEY             1011
-#define IDC_EDIT_MT_OFF_TIME                 1013
-#define IDC_CHECK_MOVE_TO_TRAY               1014
-#define IDC_EDIT_KEY_BINDING                 1015
-#define IDC_STATIC_KEY_BINDING_GUIDE         1016
-#define IDC_CHECK_ENABLE_KEYBIND             1017
-#define IDC_STATIC_LABEL_ACCEPT              1018
-#define IDC_STATIC_LABEL_ACCEPT_MS           1019
-#define IDC_STATIC_LABEL_REPEAT_DELAY        1020
-#define IDC_STATIC_LABEL_REPEAT_DELAY_MS     1021
-#define IDC_STATIC_LABEL_REPEAT_RATE         1022
-#define IDC_STATIC_LABEL_REPEAT_RATE_MS      1023
-#define IDC_GROUP_SETTINGS                   1024
+#define IDR_MAINFRAME                   100
+#define IDD_FILTERKEYSETTING_DIALOG     101
+#define IDD_RENAME_PRESET               102
+#define IDD_KEY_BINDING                 103
+#define IDD_DEBUG_CONSOLE               104
+#define IDR_NOTIFY_ON_WAV               105
+#define IDR_NOTIFY_OFF_WAV              106
+#define IDC_BTN_PRESET_OFF              1000
+#define IDC_BTN_PRESET1                 1001
+#define IDC_BTN_PRESET2                 1002
+#define IDC_EDIT_ACCEPT_DELAY           1004
+#define IDC_EDIT_REPEAT_DELAY           1005
+#define IDC_EDIT_REPEAT_RATE            1006
+#define IDC_EDIT_TESTING                1007
+#define IDC_EDIT_CHANGE_NAME            1008
+#define IDC_CHECK_EDIT_MODE             1009
+#define IDC_CHECK_RESTORE_SETTING       1010
+#define IDC_CHECK_DISABLE_HOTKEY        1011
+#define IDC_EDIT_MT_OFF_TIME            1013
+#define IDC_CHECK_MOVE_TO_TRAY          1014
+#define IDC_EDIT_KEY_BINDING            1015
+#define IDC_STATIC_KEY_BINDING_GUIDE    1016
+#define IDC_CHECK_ENABLE_KEYBIND        1017
+#define IDC_STATIC_LABEL_ACCEPT         1018
+#define IDC_STATIC_LABEL_ACCEPT_MS      1019
+#define IDC_STATIC_LABEL_REPEAT_DELAY   1020
+#define IDC_STATIC_LABEL_REPEAT_DELAY_MS 1021
+#define IDC_STATIC_LABEL_REPEAT_RATE    1022
+#define IDC_STATIC_LABEL_REPEAT_RATE_MS 1023
+#define IDC_GROUP_SETTINGS              1024
 #define IDC_CHECK_SET_MOUSE_DBLCLICK_TRACKER 1025
-#define IDC_CHECK_ENABLE_TOGGLE_KEYBIND      1026
-#define IDC_EDIT_TOGGLE_KEYBIND              1027
-#define IDC_EDIT_DEBUG_LOG                   1100
-#define IDC_CHECK_DBG_DBLCLICK_TRACKER       1101
-#define IDC_CHECK_DBG_MOVE_TRACKER           1102
-#define IDC_COMBO_DBG_PRESET_COUNT           1103
-#define IDC_BTN_DBG_APPLY_PRESET_COUNT       1104
-#define IDC_CHECK_DISABLE_WITH_ESC           1106
-#define IDC_CHECK_MUTE_SOUND                 1107
-#define IDC_CHECK_SYNC_FILTERKEY             1108
-#define IDC_GROUP_PRESET_OSD                 1109
-#define IDC_CHECK_ENABLE_PRESET_OSD          1110
-#define IDC_COMBO_PRESET_OSD_CORNER          1111
-#define IDC_STATIC_PRESET_OSD_ALPHA          1112
-#define IDC_SLIDER_PRESET_OSD_ALPHA          1113
-#define IDC_RADIO_PRESET_OSD_KEEP            1114
-#define IDC_RADIO_PRESET_OSD_3SEC            1115
-#define IDC_STATIC_PRESET_OSD_ALPHA_OPAQUE   1116
-#define IDC_STATIC_PRESET_OSD_DURATION       1117
-#define IDC_STATIC_PRESET_OSD_DURATION2      1118
-#define IDC_STATIC_PRESET_OSD_DURATION3      1121
-#define IDC_COMBO_PRESET_OSD_SIZE            1122
-#define IDC_CHECK_OFF_USE_WINDOWS_DEFAULT    1123
-#define IDM_TRAY_OPEN                        50001
-#define IDM_TRAY_EXIT                        50002
-#define IDM_TRAY_PRESET_BASE                 50100
+#define IDC_CHECK_ENABLE_TOGGLE_KEYBIND 1026
+#define IDC_EDIT_TOGGLE_KEYBIND         1027
+#define IDC_EDIT_DEBUG_LOG              1100
+#define IDC_CHECK_DBG_DBLCLICK_TRACKER  1101
+#define IDC_CHECK_DBG_MOVE_TRACKER      1102
+#define IDC_COMBO_DBG_PRESET_COUNT      1103
+#define IDC_BTN_DBG_APPLY_PRESET_COUNT  1104
+#define IDC_CHECK_DISABLE_WITH_ESC      1106
+#define IDC_CHECK_MUTE_SOUND            1107
+#define IDC_CHECK_SYNC_FILTERKEY        1108
+#define IDC_GROUP_PRESET_OSD            1109
+#define IDC_CHECK_ENABLE_PRESET_OSD     1110
+#define IDC_COMBO_PRESET_OSD_CORNER     1111
+#define IDC_STATIC_PRESET_OSD_ALPHA     1112
+#define IDC_SLIDER_PRESET_OSD_ALPHA     1113
+#define IDC_RADIO_PRESET_OSD_KEEP       1114
+#define IDC_RADIO_PRESET_OSD_3SEC       1115
+#define IDC_STATIC_PRESET_OSD_ALPHA_OPAQUE 1116
+#define IDC_STATIC_PRESET_OSD_DURATION  1117
+#define IDC_STATIC_PRESET_OSD_DURATION2 1118
+#define IDC_GROUP_PROCESS_OFF           1119
+#define IDC_STATIC_PRESET_OSD_DURATION3 1121
+#define IDC_COMBO_PRESET_OSD_SIZE       1122
+#define IDC_CHECK_OFF_USE_WINDOWS_DEFAULT 1123
+#define IDC_COMBO_MOVE_SENSITIVITY      1124
+#define IDC_CHECK_AUTO_START            1127
+#define IDC_CHECK_PRESET_OFF_PROCESS    1128
+#define IDC_EDIT_PRESET_OFF_PROCESS     1129
+#define IDC_CHECK_PRESET_OFF_PROCESS_RESTORE 1130
+#define IDM_TRAY_OPEN                   50001
+#define IDM_TRAY_EXIT                   50002
+#define IDM_TRAY_PRESET_BASE            50100
 
 // Next default values for new objects
-//
+// 
 #ifdef APSTUDIO_INVOKED
-  #ifndef APSTUDIO_READONLY_SYMBOLS
-    #define _APS_NEXT_RESOURCE_VALUE 137
-    #define _APS_NEXT_COMMAND_VALUE  32771
-    #define _APS_NEXT_CONTROL_VALUE  1124
-    #define _APS_NEXT_SYMED_VALUE    101
-  #endif
+#ifndef APSTUDIO_READONLY_SYMBOLS
+#define _APS_NEXT_RESOURCE_VALUE        137
+#define _APS_NEXT_COMMAND_VALUE         32771
+#define _APS_NEXT_CONTROL_VALUE         1131
+#define _APS_NEXT_SYMED_VALUE           101
+#endif
 #endif

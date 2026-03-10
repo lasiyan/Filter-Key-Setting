@@ -1,7 +1,7 @@
-﻿# Filter Key Setting
+# Filter Key Setting
 Windows 환경에서 필터키(Filter Keys) 값을 프리셋으로 빠르게 전환/관리하는 도구입니다.
 
-![image](https://github.com/user-attachments/assets/428e9743-2286-4196-8d91-513d7ee78282)
+<img src="https://github.com/user-attachments/assets/428e9743-2286-4196-8d91-513d7ee78282" width="50%">
 
 ## 개발 환경
 - Windows 10 Home 22H2 19045.3086
@@ -28,10 +28,11 @@ Windows 환경에서 필터키(Filter Keys) 값을 프리셋으로 빠르게 전
 - 해당 UI에서 세부 설정, 테스트 관련 옵션, 배포 외 목적으로 개발된 기능을 확인할 수 있습니다.
 
 ### 프로그램 설정 초기화
-1. 프로그램을 종료합니다.
-2. `Win+R`키를 누른 후 `regedit`을 입력하여 레지스트리 편집기를 실행합니다.
-3. `HKEY_CURRENT_USER\Software`경로에서 `FilterKeyHelper` 폴더를 삭제합니다.
-4. 프로그램을 다시 실행합니다.
+1. `윈도우 시작 시 자동 실행` 옵션이 선택된 경우 해제합니다.
+2. 프로그램을 종료합니다. 
+3. `Win+R`키를 누른 후 `regedit`을 입력하여 레지스트리 편집기를 실행합니다.
+4. `HKEY_CURRENT_USER\Software`경로에서 `FilterKeyHelper` 폴더를 삭제합니다.
+5. 프로그램을 다시 실행합니다.
 
 ---
 
@@ -52,7 +53,8 @@ Get-FileHash .\FilterKeySetting.exe -Algorithm SHA256
 ## 주의 사항
 - 본 프로그램은 접근성(필터키) 시스템 설정을 직접 변경하므로, 보안 정책이 엄격한 환경에서는 일부 기능이 제한될 수 있습니다.
 - 프로그램 권한은 `asInvoker`이며 관리자 권한을 요구하지 않습니다.
-- 전역 단축키/백그라운드 입력 감지 기능은 옵션을 켠 경우에만 동작합니다.
+- 전역 단축키/백그라운드 입력 감지/프로세스 감지 기능은 옵션을 켠 경우에만 동작합니다.
+- 자동 실행 옵션은 `HKCU\...\Run` 레지스트리에 현재 exe 경로를 등록합니다.
 - 배포 신뢰, SmartScreen, 설정 저장 범위, 운영 권한 관련 상세 내용은 아래 문서를 참고하세요.
 
 상세 문서: [보안/운영 주의 사항](docs/Security-Notice.md)

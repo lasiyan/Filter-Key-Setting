@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -221,7 +221,6 @@ powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-Rel
     <ClInclude Include="DialogKeyBinding.h" />
     <ClInclude Include="DialogRename.h" />
     <ClInclude Include="FilterKeySetting.h" />
-    <ClInclude Include="FilterKeySettingDefine.h" />
     <ClInclude Include="FilterKeySettingDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
@@ -234,6 +233,7 @@ powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-Rel
     <ClInclude Include="UserMouseTracker.hpp" />
     <ClInclude Include="UserOption.hpp" />
     <ClInclude Include="UserPresetOSD.hpp" />
+    <ClInclude Include="UserPresetService.hpp" />
     <ClInclude Include="UserTooltip.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -253,6 +253,7 @@ powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\Generate-Rel
     <ClCompile Include="UserMouseTracker.cpp" />
     <ClCompile Include="UserOption.cpp" />
     <ClCompile Include="UserPresetOSD.cpp" />
+    <ClCompile Include="UserPresetService.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FilterKeySetting.rc" />

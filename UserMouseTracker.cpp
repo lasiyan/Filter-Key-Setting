@@ -1,39 +1,14 @@
 ﻿// clang-format off
 #include "pch.h"
 #include "UserMouseTracker.hpp"
+#include "UserDefine.hpp"
 #include <cstdlib>
 // clang-format on
 
-MouseTracker::MouseTracker()
-    : owner_wnd_(nullptr),
-      timer_queue_(nullptr),
-      timer_handle_(nullptr),
-      initialized_(false),
-      active_(false),
-      interval_ms_(50),
-      move_threshold_px_(2),
-      distance_target_px_(120),
-      double_click_ms_(350),
-      double_click_range_px_(12),
-      arm_delay_ms_(800),
-      has_last_cursor_pos_(false),
-      last_cursor_pos_{ 0, 0 },
-      moved_distance_px_(0),
-      last_left_button_down_(false),
-      has_last_click_(false),
-      last_click_pos_{ 0, 0 },
-      last_click_ms_(0),
-      trigger_cooldown_until_ms_(0),
-      background_since_ms_(0),
-      enable_move_trigger_(false),
-      enable_double_click_trigger_(false),
-      in_background_(false)
-{
-}
+MouseTracker::MouseTracker() = default;
 
 MouseTracker::~MouseTracker()
 {
-  // lightweight only (cleanup is done in Release)
 }
 
 bool MouseTracker::Initialize(HWND  owner_wnd,
@@ -67,7 +42,7 @@ void MouseTracker::Release()
   if (!initialized_)
     return;
 
-  Deactive();
+  Deactivate();
 
   if (timer_queue_)
   {
@@ -79,7 +54,7 @@ void MouseTracker::Release()
   initialized_ = false;
 }
 
-bool MouseTracker::Active()
+bool MouseTracker::Activate()
 {
   if (!initialized_ || active_)
     return false;
@@ -94,7 +69,7 @@ bool MouseTracker::Active()
       this,
       0,
       interval_ms_,
-      WT_EXECUTEDEFAULT);
+      WT_EXECUTEINTIMERTHREAD);  // WT_EXECUTEDEFAULT
 
   if (!ok)
     return false;
@@ -103,7 +78,7 @@ bool MouseTracker::Active()
   return true;
 }
 
-void MouseTracker::Deactive()
+void MouseTracker::Deactivate()
 {
   if (!active_)
     return;
@@ -137,6 +112,12 @@ void MouseTracker::Tick()
 {
   if (!active_)
     return;
+
+  if (reset_pending_.exchange(false))
+  {
+    ResetTracking();
+    return;
+  }
 
   const bool enable_move         = enable_move_trigger_.load();
   const bool enable_double_click = enable_double_click_trigger_.load();
@@ -191,12 +172,16 @@ void MouseTracker::Tick()
                        (dy >= static_cast<int>(move_threshold_px_));
     if (moved && enable_move)
     {
+      if (last_move_ms_ != 0 && (now - last_move_ms_) >= 500)
+        moved_distance_px_ = 0;
+      last_move_ms_ = now;
+
       moved_distance_px_ += static_cast<ULONGLONG>(dx + dy);
       if (now >= trigger_cooldown_until_ms_ &&
           moved_distance_px_ >= distance_target_px_)
       {
         if (::IsWindow(owner_wnd_))
-          ::PostMessage(owner_wnd_, TIMER_MOUSE_MOVE_WATCH,
+          ::PostMessage(owner_wnd_, WM_MOUSE_TRACKER_TRIGGERED,
                         static_cast<WPARAM>(MouseTrackerTrigger::MoveDistance), 0);
 
         trigger_cooldown_until_ms_ = now + 1000;
@@ -218,7 +203,7 @@ void MouseTracker::Tick()
       if (now >= trigger_cooldown_until_ms_)
       {
         if (::IsWindow(owner_wnd_))
-          ::PostMessage(owner_wnd_, TIMER_MOUSE_MOVE_WATCH,
+          ::PostMessage(owner_wnd_, WM_MOUSE_TRACKER_TRIGGERED,
                         static_cast<WPARAM>(MouseTrackerTrigger::DoubleClick), 0);
 
         trigger_cooldown_until_ms_ = now + 1000;
@@ -242,6 +227,7 @@ void MouseTracker::ResetTracking()
 {
   has_last_cursor_pos_       = false;
   moved_distance_px_         = 0;
+  last_move_ms_              = 0;
   last_left_button_down_     = false;
   has_last_click_            = false;
   last_click_ms_             = 0;
@@ -261,7 +247,10 @@ bool MouseTracker::IsOwnerForeground() const
   if (fg == owner_wnd_)
     return true;
 
-  return ::IsChild(owner_wnd_, fg) == TRUE;
+  if (::IsChild(owner_wnd_, fg))
+    return true;
+
+  return (::GetWindow(fg, GW_OWNER) == owner_wnd_);
 }
 
 ULONGLONG MouseTracker::NowMs() const

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <mmsystem.h>
 
@@ -9,6 +9,7 @@
 
 namespace UserPlaySound {
 
+// Try to play embedded WAV resource
 inline bool TryPlayEmbeddedWav(const int preset)
 {
   const int resource_id = PRESET_IS_OFF(preset) ? IDR_NOTIFY_OFF_WAV : IDR_NOTIFY_ON_WAV;
@@ -34,6 +35,7 @@ inline bool TryPlayEmbeddedWav(const int preset)
                       SND_MEMORY | SND_ASYNC | SND_NODEFAULT) == TRUE);
 }
 
+// Play preset-applied notification sound (if not muted)
 inline void PlayPresetAppliedSound(const int preset)
 {
   if (GLOBAL_OPTION.getInteger(KEY_MUTE_SOUND, 0) != 0)

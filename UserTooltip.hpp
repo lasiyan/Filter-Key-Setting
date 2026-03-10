@@ -13,7 +13,7 @@ class Tooltip
     UINT    control_id;
     LPCTSTR text;
   };
-  static constexpr TooltipItem TOOLTIP_TABEL[] = {
+  static constexpr TooltipItem TOOLTIP_TABLE[] = {
     // Main Dialog
     { IDC_EDIT_ACCEPT_DELAY, _T("키 입력 인식까지의 대기 시간(ms)입니다") },
     { IDC_EDIT_REPEAT_DELAY, _T("키 반복이 시작되기 전 대기 시간(ms)입니다") },
@@ -36,10 +36,16 @@ class Tooltip
     { IDC_SLIDER_PRESET_OSD_ALPHA, _T("OSD 투명도를 조절합니다") },
     { IDC_RADIO_PRESET_OSD_KEEP, _T("OSD를 다음 프리셋 변경 전까지 유지합니다") },
     { IDC_RADIO_PRESET_OSD_3SEC, _T("OSD를 3초 후 자동으로 숨깁니다") },
-    { IDC_COMBO_PRESET_OSD_SIZE, _T("OSD 글자 크기를 선택합니다") }
+    { IDC_COMBO_PRESET_OSD_SIZE, _T("OSD 글자 크기를 선택합니다") },
+    { IDC_COMBO_MOVE_SENSITIVITY, _T("마우스 이동에 따른 종료 트리거 감도를 선택합니다\n높을수록 작은 움직임에도 필터키가 종료됩니다") },
+    { IDC_CHECK_AUTO_START, _T("윈도우 시작 시 프로그램을 자동으로 실행합니다. 시스템 환경에 따라 시작 프로그램 등록이 실패할 수 있습니다. 일부 환경에서는 관리자 권한이 필요할 수 있습니다") },
+    { IDC_CHECK_PRESET_OFF_PROCESS, _T("프리셋이 설정된 상태에서 특정 프로세스에서 벗어나면 프리셋을 OFF로 전환합니다") },
+    { IDC_CHECK_PRESET_OFF_PROCESS_RESTORE, _T("프리셋이 OFF로 전환된 후, 다시 해당 프로세스에 진입하면 이전 프리셋으로 복원합니다\n단, 도중에 다른 프리셋으로 설정된 경우에는 복원되지 않습니다") },
+    { IDC_EDIT_PRESET_OFF_PROCESS, _T("기능을 사용할 프로세스를 선택합니다(예: MapleStory.exe)\n마우스 클릭 시 선택창이 나타납니다\n마우스 우클릭 시 프로세스를 초기화합니다") },
   };
 
  public:
+  // Initialization
   bool Initialize(CWnd* owner)
   {
     if (!owner || !::IsWindow(owner->GetSafeHwnd()))
@@ -56,21 +62,23 @@ class Tooltip
     control_.SetDelayTime(TTDT_RESHOW, 120);
     control_.SetDelayTime(TTDT_AUTOPOP, 15000);
 
-    for (int index = 0; index < _countof(TOOLTIP_TABEL); ++index)
+    for (int index = 0; index < _countof(TOOLTIP_TABLE); ++index)
     {
-      if (CWnd* control = owner->GetDlgItem(TOOLTIP_TABEL[index].control_id); control)
-        control_.AddTool(control, TOOLTIP_TABEL[index].text);
+      if (auto* control = owner->GetDlgItem(TOOLTIP_TABLE[index].control_id); control)
+        control_.AddTool(control, TOOLTIP_TABLE[index].text);
     }
 
     return true;
   }
 
-  void RegistPreset(CWnd* button)
+  // Preset button tooltip
+  void RegisterPreset(CWnd* button)
   {
     if (button)
       control_.AddTool(button, _T("클릭: 프리셋 적용\nCtrl+클릭: 프리셋 이름 변경\nAlt+클릭: 단축키 지정 (기능 활성화 시)"));
   }
 
+  // Message relay
   void RelayEvent(MSG* pMsg)
   {
     if (control_.GetSafeHwnd())

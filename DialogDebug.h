@@ -20,12 +20,14 @@ class DialogDebug : public CDialogEx, public DevLogSink
 #endif
 
  protected:
+  // MFC overrides
   void DoDataExchange(CDataExchange* pDX) override;
   BOOL OnInitDialog() override;
   BOOL PreTranslateMessage(MSG* pMsg) override;
   void OnCancel() override;
   void PostNcDestroy() override;
 
+  // Message handlers
   afx_msg void OnClose();
   afx_msg void OnDestroy();
   afx_msg void OnBnClickedCheckDbgMoveTracker();
@@ -39,17 +41,31 @@ class DialogDebug : public CDialogEx, public DevLogSink
   afx_msg void OnBnClickedRadioPresetOsdKeep();
   afx_msg void OnBnClickedRadioPresetOsd3sec();
   afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
-
+  afx_msg void OnCbnSelchangeComboMouseSensitivity();
+  afx_msg void OnBnClickedCheckAutoStart();
+  afx_msg void OnBnClickedCheckPresetOffProcess();
+  afx_msg void OnBnClickedCheckPresetOffProcessRestore();
+  afx_msg void OnEnKillFocusEditPresetOffProcess();
   DECLARE_MESSAGE_MAP()
 
  public:
+  // DevLogSink
   void AppendDevLog(const CString& line) override;
 
  private:
+  // Option init / sync
   void InitializeOptions();
   void NotifyOptionsChanged();
+  void InitializeOsdOptions();
+  void InitializeMouseSensitivity();
+  void InitializeAutoStart();
+  void InitializeProcessOffOptions();
+  void UpdateProcessOffControlStates();
+  void BrowseProcessFile();
+  void ClearProcessFile();
+  void SaveOsdOptionsFromUI();
 
- private:
+  // State
   CString log_text_;
   Tooltip tooltip_;
   bool    preset_count_combo_updating_ = false;

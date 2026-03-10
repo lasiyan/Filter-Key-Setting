@@ -17,15 +17,13 @@
 #include "UserKeyBinding.hpp"
 #include "UserPlaySound.hpp"
 #include "UserPresetOSD.hpp"
+#include "UserPresetService.hpp"
 #include <algorithm>
 // clang-format on
 
 #ifdef _DEBUG
   #define new DEBUG_NEW
 #endif
-
-#define _CRT_SECURE_NO_WARNINGS
-#pragma warning(disable : 4996)
 
 // CFilterKeySettingDlg dialog
 
@@ -51,9 +49,9 @@ ON_WM_TIMER()
 ON_WM_DESTROY()
 ON_WM_HOTKEY()
 ON_MESSAGE(WM_TRAYICON_MSG, &CFilterKeySettingDlg::OnTrayIcon)
-ON_MESSAGE(TIMER_MOUSE_MOVE_WATCH, &CFilterKeySettingDlg::OnMouseTrackerTriggered)
-ON_MESSAGE(CFilterKeySettingDlg::WM_DEV_DEBUG_CLOSED, &CFilterKeySettingDlg::OnDebugDialogClosed)
-ON_MESSAGE(CFilterKeySettingDlg::WM_DEV_DEBUG_OPTIONS_CHANGED, &CFilterKeySettingDlg::OnDebugOptionsChanged)
+ON_MESSAGE(WM_MOUSE_TRACKER_TRIGGERED, &CFilterKeySettingDlg::OnMouseTrackerTriggered)
+ON_MESSAGE(WM_DEV_DEBUG_CLOSED, &CFilterKeySettingDlg::OnDebugDialogClosed)
+ON_MESSAGE(WM_DEV_DEBUG_OPTIONS_CHANGED, &CFilterKeySettingDlg::OnDebugOptionsChanged)
 ON_COMMAND_RANGE(CFilterKeySettingDlg::dynamic_preset_button_base_,
                  CFilterKeySettingDlg::dynamic_preset_button_base_ + PRESET_MAX_COUNT - 1,
                  &CFilterKeySettingDlg::OnCommandPresetButton)
@@ -91,7 +89,7 @@ BOOL CFilterKeySettingDlg::OnInitDialog()
   auto last_set = static_cast<int>(GLOBAL_OPTION.getInteger(KEY_LAST_PRESET));
   if (PRESET_IS_VALID(last_set) == false)
     last_set = PRESET_OFF;
-  ActivePreset(last_set, FALSE);
+  ActivatePreset(last_set, FALSE, FALSE, _T("Init (last preset)"));
 
   // Update Interface
   UpdateOption(FALSE);
@@ -100,7 +98,7 @@ BOOL CFilterKeySettingDlg::OnInitDialog()
   // Tooltip
   tooltip_.Initialize(this);
   for (int preset = PRESET_OFF; preset < preset_count_; ++preset)
-    tooltip_.RegistPreset(GetDlgItem(GetPresetButtonControlId(preset)));
+    tooltip_.RegisterPreset(GetDlgItem(GetPresetButtonControlId(preset)));
 
   // Kill Focus Edit control
   OnEnKillFocusTesting();
@@ -163,6 +161,12 @@ void CFilterKeySettingDlg::OnDestroy()
     bg_esc_prev_down_    = false;
   }
 
+  if (process_watch_active_)
+  {
+    KillTimer(TIMER_PROCESS_WATCHER);
+    process_watch_active_ = false;
+  }
+
   if (debug_dialog_ && ::IsWindow(debug_dialog_->GetSafeHwnd()))
   {
     debug_dialog_->DestroyWindow();
@@ -172,7 +176,7 @@ void CFilterKeySettingDlg::OnDestroy()
   mouse_tracker_.Release();
 
   if (GLOBAL_OPTION.getInteger(KEY_RESTORE_SETTING))
-    ActivePreset(PRESET_OFF, FALSE);
+    ActivatePreset(PRESET_OFF, FALSE, FALSE, _T("Destroy (restore off)"));
 
   UnregisterPresetHotkeys();
   RemoveTrayIcon();
@@ -190,9 +194,8 @@ void CFilterKeySettingDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
     if (!PRESET_IS_VALID(target_preset))
       return;
 
-    DevLog::Writef(_T("Global hotkey toggled: from=%d to=%d"), current_preset, target_preset);
     ResetEditMode();
-    ActivePreset(target_preset, FALSE, TRUE);
+    ActivatePreset(target_preset, FALSE, TRUE, _T("Toggle hotkey"));
     return;
   }
 
@@ -212,9 +215,8 @@ void CFilterKeySettingDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
   if (PRESET_IS_VALID(target_preset) == false)
     return;
 
-  DevLog::Writef(_T("Global hotkey activated: preset=%d"), target_preset);
   ResetEditMode();
-  ActivePreset(target_preset, FALSE, TRUE);
+  ActivatePreset(target_preset, FALSE, TRUE, _T("Preset hotkey"));
 }
 
 void CFilterKeySettingDlg::OnTimer(UINT_PTR nIDEvent)
@@ -240,9 +242,14 @@ void CFilterKeySettingDlg::OnTimer(UINT_PTR nIDEvent)
     if (GLOBAL_OPTION.getInteger(KEY_LAST_PRESET) == static_cast<DWORD>(PRESET_OFF))
       return;
 
-    DevLog::Write(_T("Background ESC detected. Turning preset off."));
     ResetEditMode();
-    ActivePreset(PRESET_OFF, FALSE, TRUE);
+    ActivatePreset(PRESET_OFF, FALSE, TRUE, _T("Background ESC"));
+    return;
+  }
+
+  if (nIDEvent == TIMER_PROCESS_WATCHER)
+  {
+    TickProcessWatcher();
     return;
   }
 
@@ -306,7 +313,7 @@ LRESULT CFilterKeySettingDlg::OnTrayIcon(WPARAM wParam, LPARAM lParam)
       {
         const int selected_preset = static_cast<int>(cmd - IDM_TRAY_PRESET_BASE);
         last_selected_            = selected_preset;
-        ActivePreset(selected_preset, FALSE, TRUE);
+        ActivatePreset(selected_preset, FALSE, TRUE, _T("Tray menu"));
       }
 
       PostMessage(WM_NULL);
@@ -341,9 +348,9 @@ LRESULT CFilterKeySettingDlg::OnMouseTrackerTriggered(WPARAM wParam, LPARAM lPar
   if (GLOBAL_OPTION.getInteger(KEY_LAST_PRESET) == static_cast<DWORD>(PRESET_OFF))
     return 0;
 
-  DevLog::Writef(_T("Mouse tracker trigger received: type=%u"), static_cast<UINT>(wParam));
   ResetEditMode();
-  ActivePreset(PRESET_OFF, FALSE, TRUE);
+  ActivatePreset(PRESET_OFF, FALSE, TRUE,
+                 trigger == MouseTrackerTrigger::MoveDistance ? _T("Mouse Move tracker") : _T("Mouse D-Click tracker"));
   return 0;
 }
 
@@ -540,7 +547,7 @@ void CFilterKeySettingDlg::OnBnClickedCheckEditMode()
 
       // 필터키 일시적으로 끄기
       preset_before_edit_ = GLOBAL_OPTION.getInteger(KEY_LAST_PRESET);
-      ActivePreset(PRESET_OFF, FALSE);
+      ActivatePreset(PRESET_OFF, FALSE, FALSE, _T("Edit mode enter"));
 
       // 편집 대상은 유지한다. (적용 시 OFF로 저장/적용되는 문제 방지)
       last_selected_ = edit_target_preset;
@@ -552,12 +559,12 @@ void CFilterKeySettingDlg::OnBnClickedCheckEditMode()
       bool      values_changed          = false;
       if (!SaveCurrentEditingValues(target_preset_for_apply, &values_changed))
       {
-        if (auto edit_mode_button = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE)); edit_mode_button)
+        if (auto edit_mode_button = static_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE)); edit_mode_button)
           edit_mode_button->SetCheck(BST_CHECKED);
         return;
       }
 
-      ActivePreset(target_preset_for_apply, values_changed ? TRUE : FALSE);
+      ActivatePreset(target_preset_for_apply, values_changed ? TRUE : FALSE, FALSE, _T("Edit mode apply"));
       preset_before_edit_ = PRESET_OFF;
     }
 
@@ -582,7 +589,7 @@ void CFilterKeySettingDlg::OnBnClickedCheckMoveToTray()
 
 void CFilterKeySettingDlg::OnBnClickedCheckEnableKeybind()
 {
-  if (auto btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_KEYBIND)); btn)
+  if (auto btn = static_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_KEYBIND)); btn)
   {
     const bool checked  = (btn->GetCheck() == BST_CHECKED);
     const bool previous = KeyBinding::IsEnabled();
@@ -602,7 +609,7 @@ void CFilterKeySettingDlg::OnBnClickedCheckEnableKeybind()
 
 void CFilterKeySettingDlg::OnBnClickedCheckEnableToggleKeybind()
 {
-  if (auto btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_TOGGLE_KEYBIND)); btn)
+  if (auto btn = static_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_TOGGLE_KEYBIND)); btn)
   {
     const bool checked  = (btn->GetCheck() == BST_CHECKED);
     const bool previous = KeyBinding::IsToggleEnabled();
@@ -627,7 +634,7 @@ void CFilterKeySettingDlg::OnBnClickedCheckSetMouseDblclickTracker()
 
 void CFilterKeySettingDlg::OnBnClickedCheckDisableWithEsc()
 {
-  if (auto btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_WITH_ESC)); btn)
+  if (auto btn = static_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_WITH_ESC)); btn)
   {
     const bool checked  = (btn->GetCheck() == BST_CHECKED);
     const bool previous = (GLOBAL_OPTION.getInteger(KEY_DISABLE_WITH_ESC, 0) != 0);
@@ -647,12 +654,14 @@ void CFilterKeySettingDlg::OnBnClickedCheckDisableWithEsc()
 
 void CFilterKeySettingDlg::OnEnSetFocusTesting()
 {
-  GetDlgItem(IDC_EDIT_TESTING)->SetWindowText(_T(""));
+  if (auto* ctrl = GetDlgItem(IDC_EDIT_TESTING); ctrl)
+    ctrl->SetWindowText(_T(""));
 }
 
 void CFilterKeySettingDlg::OnEnKillFocusTesting()
 {
-  GetDlgItem(IDC_EDIT_TESTING)->SetWindowText(_T("설정 값 테스트 해보기"));
+  if (auto* ctrl = GetDlgItem(IDC_EDIT_TESTING); ctrl)
+    ctrl->SetWindowText(_T("설정 값 테스트 해보기"));
 }
 
 void CFilterKeySettingDlg::OnEnSetFocusToggleKeybind()
@@ -693,7 +702,7 @@ void CFilterKeySettingDlg::BnClickPreset(const int target_preset)
   }
   else
   {
-    ActivePreset(target_preset, FALSE, TRUE);
+    ActivatePreset(target_preset, FALSE, TRUE, _T("Preset button"));
   }
 }
 
@@ -723,7 +732,6 @@ void CFilterKeySettingDlg::PopupKeyBindingDialog(const int target_preset)
   PresetOption option(target_preset);
   DWORD        current_hotkey = option.getInteger(KEY_PRESET_HOTKEY, 0);
 
-  // 키 바인딩 입력 중에는 전역 프리셋 핫키를 잠시 비활성화한다.
   UnregisterPresetHotkeys();
 
   const auto FinishBindingFlow = [&]() {
@@ -742,32 +750,14 @@ void CFilterKeySettingDlg::PopupKeyBindingDialog(const int target_preset)
     }
 
     const DWORD hotkey_value = dlg.hotkey_value_;
+    auto        validation   = KeyBinding::ValidateHotkeyCandidate(
+        preset_count_, hotkey_value, target_preset, false);
 
-    if (hotkey_value != 0)
+    if (!validation.ok)
     {
-      constexpr DWORD reserved_debug_hotkey =
-          (static_cast<DWORD>(MOD_CONTROL | MOD_ALT) << 16) | VK_F12;
-      if (hotkey_value == reserved_debug_hotkey)
-      {
-        AfxMessageBox(_T("Ctrl+Alt+F12는 사용할 수 없는 단축키입니다.\r\n다른 단축키를 입력하세요."));
-        current_hotkey = hotkey_value;
-        continue;
-      }
-
-      CString duplicate_desc;
-      if (KeyBinding::FindDuplicateActiveHotkeyCandidate(preset_count_, hotkey_value,
-                                                         target_preset, false,
-                                                         &duplicate_desc))
-      {
-        CString message;
-        message.Format(_T("이미 '%s'에 등록된 단축키입니다.\r\n다른 단축키를 입력하세요."),
-                       (LPCTSTR)duplicate_desc);
-        AfxMessageBox(message);
-
-        // 다시 입력할 수 있도록 방금 입력했던 값으로 창을 다시 연다.
-        current_hotkey = hotkey_value;
-        continue;
-      }
+      AfxMessageBox(validation.error_message);
+      current_hotkey = hotkey_value;
+      continue;
     }
 
     option.set(KEY_PRESET_HOTKEY, hotkey_value);
@@ -804,29 +794,14 @@ void CFilterKeySettingDlg::PopupToggleKeyBindingDialog()
     }
 
     const DWORD hotkey_value = dlg.hotkey_value_;
-    if (hotkey_value != 0)
-    {
-      constexpr DWORD reserved_debug_hotkey =
-          (static_cast<DWORD>(MOD_CONTROL | MOD_ALT) << 16) | VK_F12;
-      if (hotkey_value == reserved_debug_hotkey)
-      {
-        AfxMessageBox(_T("Ctrl+Alt+F12는 사용할 수 없는 단축키입니다.\r\n다른 단축키를 입력하세요."));
-        next_hotkey = hotkey_value;
-        continue;
-      }
+    auto        validation   = KeyBinding::ValidateHotkeyCandidate(
+        preset_count_, hotkey_value, -1, true);
 
-      CString duplicate_desc;
-      if (KeyBinding::FindDuplicateActiveHotkeyCandidate(preset_count_, hotkey_value,
-                                                         -1, true,
-                                                         &duplicate_desc))
-      {
-        CString message;
-        message.Format(_T("이미 '%s'에 등록된 단축키입니다.\r\n다른 단축키를 입력하세요."),
-                       (LPCTSTR)duplicate_desc);
-        AfxMessageBox(message);
-        next_hotkey = hotkey_value;
-        continue;
-      }
+    if (!validation.ok)
+    {
+      AfxMessageBox(validation.error_message);
+      next_hotkey = hotkey_value;
+      continue;
     }
 
     GLOBAL_OPTION.set(KEY_TOGGLE_HOTKEY, hotkey_value);
@@ -835,23 +810,31 @@ void CFilterKeySettingDlg::PopupToggleKeyBindingDialog()
   }
 }
 
-void CFilterKeySettingDlg::ActivePreset(const int preset, BOOL alert, BOOL beep)
+void CFilterKeySettingDlg::ActivatePreset(const int preset, BOOL alert, BOOL beep, LPCTSTR reason)
 {
   const int target_preset = PRESET_IS_VALID(preset)
                                 ? preset
                                 : PRESET_OFF;
 
-  if (target_preset == static_cast<int>(GLOBAL_OPTION.getInteger(KEY_LAST_PRESET)))
+  if (process_watch_auto_off_ && !process_watch_switching_)
+    process_watch_auto_off_ = false;
+
+  const int current_preset = static_cast<int>(GLOBAL_OPTION.getInteger(KEY_LAST_PRESET));
+  if (target_preset == current_preset)
   {
     last_selected_ = target_preset;
     UpdateInterface(target_preset);
     return;
   }
 
-  bool ok = FilterKey::ActivePreset(target_preset);
-  DevLog::Writef(_T("ActivePreset called: preset=%d, ok=%d"), target_preset, ok ? 1 : 0);
-  if (ok && PRESET_IS_ON(target_preset) && target_preset < preset_count_)
-    last_on_preset_ = target_preset;
+  DevLog::Writef(_T("[Preset] %d -> %d | %s"), current_preset, target_preset, reason ? reason : _T("(unknown)"));
+
+  mouse_tracker_.RequestReset();
+
+  int  last_on = last_on_preset_;
+  bool ok      = PresetService::ActivatePreset(target_preset, &last_on);
+  if (target_preset < preset_count_)
+    last_on_preset_ = last_on;
 
   if (ok)
     UserPresetOSD::ShowPresetIndex(target_preset);
@@ -867,180 +850,134 @@ void CFilterKeySettingDlg::ActivePreset(const int preset, BOOL alert, BOOL beep)
       AfxMessageBox(_T("프리셋을 수정할 수 없습니다\r\n관리자 권한으로 실행하세요."));
   }
 
-  // UI 업데이트
   last_selected_ = target_preset;
   UpdateInterface(target_preset);
 }
 
 void CFilterKeySettingDlg::ResetEditMode()
 {
-  auto btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE));
-  btn->SetCheck(BST_UNCHECKED);
+  if (auto* btn = static_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE)); btn)
+    btn->SetCheck(BST_UNCHECKED);
   preset_before_edit_ = PRESET_OFF;
 }
 
 void CFilterKeySettingDlg::UpdateOption(BOOL write /* = TRUE*/)
 {
+  if (write)
+    SyncOptionsFromUI();
+  else
+    SyncOptionsToUI();
+
+  ApplySubsystemOptions();
+  RefreshAllPresetButtonCaptions();
+  RefreshToggleHotkeyEditText();
+}
+
+void CFilterKeySettingDlg::SyncOptionsFromUI()
+{
   CButton* btn = nullptr;
 
-  if (write)
   {
-    // Restore setting
+    btn          = static_cast<CButton*>(GetDlgItem(IDC_CHECK_RESTORE_SETTING));
+    auto checked = btn ? btn->GetCheck() : false;
+    GLOBAL_OPTION.set(KEY_RESTORE_SETTING, static_cast<DWORD>(checked));
+  }
+
+  {
+    btn          = static_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_HOTKEY));
+    auto checked = btn ? btn->GetCheck() : false;
+    GLOBAL_OPTION.set(KEY_DISABLE_HOTKEY, static_cast<DWORD>(checked));
+
+    PresetOption option(PRESET_OFF);
+    DWORD        value = checked ? WINDOW_FILTER_FLAG & ~(FKF_HOTKEYACTIVE | FKF_CONFIRMHOTKEY | FKF_HOTKEYSOUND)
+                                 : WINDOW_FILTER_FLAG;
+    option.set(KEY_FILTER_FLAG, value);
+  }
+
+  {
+    btn          = static_cast<CButton*>(GetDlgItem(IDC_CHECK_MOVE_TO_TRAY));
+    auto checked = btn ? btn->GetCheck() : false;
+    GLOBAL_OPTION.set(KEY_MOVE_TO_TRAY, static_cast<DWORD>(checked));
+  }
+
+  {
+    btn          = static_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_KEYBIND));
+    auto checked = btn ? btn->GetCheck() : false;
+    GLOBAL_OPTION.set(KEY_ENABLE_KEYBIND, static_cast<DWORD>(checked));
+
+    if (!checked)
+      alt_hotkey_view_ = false;
+  }
+
+  {
+    btn          = static_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_TOGGLE_KEYBIND));
+    auto checked = btn ? btn->GetCheck() : false;
+    GLOBAL_OPTION.set(KEY_ENABLE_TOGGLE_KEYBIND, static_cast<DWORD>(checked));
+
+    if (auto toggle_edit = GetDlgItem(IDC_EDIT_TOGGLE_KEYBIND); toggle_edit)
+      toggle_edit->EnableWindow(checked ? TRUE : FALSE);
+  }
+
+  {
+    btn          = static_cast<CButton*>(GetDlgItem(IDC_CHECK_SET_MOUSE_DBLCLICK_TRACKER));
+    auto checked = btn ? btn->GetCheck() : false;
+    GLOBAL_OPTION.set(KEY_ENABLE_MOUSE_DBLCLICK_TRACKER, static_cast<DWORD>(checked));
+  }
+
+  {
+    btn          = static_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_WITH_ESC));
+    auto checked = btn ? btn->GetCheck() : false;
+    GLOBAL_OPTION.set(KEY_DISABLE_WITH_ESC, static_cast<DWORD>(checked));
+  }
+}
+
+void CFilterKeySettingDlg::SyncOptionsToUI()
+{
+  const auto SetCheck = [&](int ctrl_id, const CString& key) {
+    if (auto* btn = static_cast<CButton*>(GetDlgItem(ctrl_id)); btn)
+      btn->SetCheck(GLOBAL_OPTION.getInteger(key) ? BST_CHECKED : BST_UNCHECKED);
+  };
+
+  SetCheck(IDC_CHECK_RESTORE_SETTING, KEY_RESTORE_SETTING);
+  SetCheck(IDC_CHECK_DISABLE_HOTKEY, KEY_DISABLE_HOTKEY);
+  SetCheck(IDC_CHECK_MOVE_TO_TRAY, KEY_MOVE_TO_TRAY);
+  SetCheck(IDC_CHECK_ENABLE_KEYBIND, KEY_ENABLE_KEYBIND);
+  SetCheck(IDC_CHECK_ENABLE_TOGGLE_KEYBIND, KEY_ENABLE_TOGGLE_KEYBIND);
+  SetCheck(IDC_CHECK_SET_MOUSE_DBLCLICK_TRACKER, KEY_ENABLE_MOUSE_DBLCLICK_TRACKER);
+  SetCheck(IDC_CHECK_DISABLE_WITH_ESC, KEY_DISABLE_WITH_ESC);
+
+  if (auto toggle_edit = GetDlgItem(IDC_EDIT_TOGGLE_KEYBIND); toggle_edit)
+    toggle_edit->EnableWindow(KeyBinding::IsToggleEnabled() ? TRUE : FALSE);
+
+  if (!KeyBinding::IsEnabled())
+    alt_hotkey_view_ = false;
+}
+
+void CFilterKeySettingDlg::ApplySubsystemOptions()
+{
+  RegisterPresetHotkeys();
+
+  const bool move_enabled = (GLOBAL_OPTION.getInteger(KEY_ENABLE_MOUSE_MOVE_TRACKER) != 0);
+  const bool dbl_enabled  = (GLOBAL_OPTION.getInteger(KEY_ENABLE_MOUSE_DBLCLICK_TRACKER) != 0);
+  if (move_enabled || dbl_enabled)
+  {
+    if (mouse_tracker_.Initialize(GetSafeHwnd()))
     {
-      btn          = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_RESTORE_SETTING));
-      auto checked = btn ? btn->GetCheck() : false;
-      GLOBAL_OPTION.set(KEY_RESTORE_SETTING, static_cast<DWORD>(checked));
+      static constexpr DWORD kSensitivityToPx[] = { 1000, 800, 600, 400, 200 };
+      const auto             sens               = static_cast<int>(GLOBAL_OPTION.getInteger(KEY_MOUSE_MOVE_SENSITIVITY, 2));
+      const DWORD            dist               = kSensitivityToPx[(sens >= 0 && sens <= 4) ? sens : 2];
+      mouse_tracker_.SetDistanceTarget(dist);
+      mouse_tracker_.SetTriggerOptions(move_enabled, dbl_enabled);
+      mouse_tracker_.Activate();
     }
-
-    // Disable Hotkey
-    {
-      btn          = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_HOTKEY));
-      auto checked = btn ? btn->GetCheck() : false;
-      GLOBAL_OPTION.set(KEY_DISABLE_HOTKEY, static_cast<DWORD>(checked));
-
-      // Remove Hotkey flag if disable hotkey is checked
-      PresetOption option(PRESET_OFF);
-      DWORD        value = checked ? WINDOW_FILTER_FLAG & ~(FKF_HOTKEYACTIVE | FKF_CONFIRMHOTKEY | FKF_HOTKEYSOUND)
-                                   : WINDOW_FILTER_FLAG;
-      option.set(KEY_FILTER_FLAG, value);
-    }
-
-    // Move To Tray
-    {
-      btn          = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_MOVE_TO_TRAY));
-      auto checked = btn ? btn->GetCheck() : false;
-      GLOBAL_OPTION.set(KEY_MOVE_TO_TRAY, static_cast<DWORD>(checked));
-    }
-
-    // Enable Key Binding
-    {
-      btn          = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_KEYBIND));
-      auto checked = btn ? btn->GetCheck() : false;
-      GLOBAL_OPTION.set(KEY_ENABLE_KEYBIND, static_cast<DWORD>(checked));
-
-      if (!checked)
-        alt_hotkey_view_ = false;
-    }
-
-    // Enable Toggle Key Binding
-    {
-      btn          = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_TOGGLE_KEYBIND));
-      auto checked = btn ? btn->GetCheck() : false;
-      GLOBAL_OPTION.set(KEY_ENABLE_TOGGLE_KEYBIND, static_cast<DWORD>(checked));
-
-      if (auto toggle_edit = GetDlgItem(IDC_EDIT_TOGGLE_KEYBIND); toggle_edit)
-        toggle_edit->EnableWindow(checked ? TRUE : FALSE);
-    }
-
-    RegisterPresetHotkeys();
-    RefreshAllPresetButtonCaptions();
-    RefreshToggleHotkeyEditText();
-
-    // Enable Mouse Double-Click Tracker
-    {
-      btn          = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_SET_MOUSE_DBLCLICK_TRACKER));
-      auto checked = btn ? btn->GetCheck() : false;
-      GLOBAL_OPTION.set(KEY_ENABLE_MOUSE_DBLCLICK_TRACKER, static_cast<DWORD>(checked));
-    }
-
-    // Disable with ESC at background
-    {
-      btn          = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_WITH_ESC));
-      auto checked = btn ? btn->GetCheck() : false;
-      GLOBAL_OPTION.set(KEY_DISABLE_WITH_ESC, static_cast<DWORD>(checked));
-    }
-
-    const bool move_enabled = (GLOBAL_OPTION.getInteger(KEY_ENABLE_MOUSE_MOVE_TRACKER) != 0);
-    const bool dbl_enabled  = (GLOBAL_OPTION.getInteger(KEY_ENABLE_MOUSE_DBLCLICK_TRACKER) != 0);
-    if (move_enabled || dbl_enabled)
-    {
-      if (mouse_tracker_.Initialize(GetSafeHwnd()))
-      {
-        mouse_tracker_.SetTriggerOptions(move_enabled, dbl_enabled);
-        mouse_tracker_.Active();
-      }
-    }
-    else
-    {
-      // 체크 해제 시 트래커 기능 자체를 완전히 중지한다.
-      mouse_tracker_.Release();
-    }
-
-    UpdateEscDisableHotkeyRegistration();
   }
   else
   {
-    // Restore setting
-    {
-      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_RESTORE_SETTING));
-      btn->SetCheck(GLOBAL_OPTION.getInteger(KEY_RESTORE_SETTING) ? BST_CHECKED : BST_UNCHECKED);
-    }
-
-    // Disable Hotkey
-    {
-      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_HOTKEY));
-      btn->SetCheck(GLOBAL_OPTION.getInteger(KEY_DISABLE_HOTKEY) ? BST_CHECKED : BST_UNCHECKED);
-    }
-
-    // Move To Tray
-    {
-      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_MOVE_TO_TRAY));
-      btn->SetCheck(GLOBAL_OPTION.getInteger(KEY_MOVE_TO_TRAY) ? BST_CHECKED : BST_UNCHECKED);
-    }
-
-    // Enable Key Binding
-    {
-      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_KEYBIND));
-      btn->SetCheck(GLOBAL_OPTION.getInteger(KEY_ENABLE_KEYBIND) ? BST_CHECKED : BST_UNCHECKED);
-    }
-
-    // Enable Toggle Key Binding
-    {
-      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_ENABLE_TOGGLE_KEYBIND));
-      btn->SetCheck(GLOBAL_OPTION.getInteger(KEY_ENABLE_TOGGLE_KEYBIND) ? BST_CHECKED : BST_UNCHECKED);
-
-      if (auto toggle_edit = GetDlgItem(IDC_EDIT_TOGGLE_KEYBIND); toggle_edit)
-        toggle_edit->EnableWindow(KeyBinding::IsToggleEnabled() ? TRUE : FALSE);
-    }
-
-    // Enable Mouse Double-Click Tracker
-    {
-      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_SET_MOUSE_DBLCLICK_TRACKER));
-      btn->SetCheck(GLOBAL_OPTION.getInteger(KEY_ENABLE_MOUSE_DBLCLICK_TRACKER) ? BST_CHECKED : BST_UNCHECKED);
-    }
-
-    // Disable with ESC at background
-    {
-      btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_WITH_ESC));
-      btn->SetCheck(GLOBAL_OPTION.getInteger(KEY_DISABLE_WITH_ESC) ? BST_CHECKED : BST_UNCHECKED);
-    }
-
-    if (!KeyBinding::IsEnabled())
-      alt_hotkey_view_ = false;
-
-    RegisterPresetHotkeys();
-
-    const bool move_enabled = (GLOBAL_OPTION.getInteger(KEY_ENABLE_MOUSE_MOVE_TRACKER) != 0);
-    const bool dbl_enabled  = (GLOBAL_OPTION.getInteger(KEY_ENABLE_MOUSE_DBLCLICK_TRACKER) != 0);
-    if (move_enabled || dbl_enabled)
-    {
-      if (mouse_tracker_.Initialize(GetSafeHwnd()))
-      {
-        mouse_tracker_.SetTriggerOptions(move_enabled, dbl_enabled);
-        mouse_tracker_.Active();
-      }
-    }
-    else
-    {
-      // 시작 시 옵션이 꺼져 있으면 인프라를 생성하지 않는다.
-      mouse_tracker_.Release();
-    }
-
-    UpdateEscDisableHotkeyRegistration();
-
-    RefreshAllPresetButtonCaptions();
-    RefreshToggleHotkeyEditText();
+    mouse_tracker_.Release();
   }
+
+  UpdateEscDisableHotkeyRegistration();
+  UpdateProcessWatcherRegistration();
 }
 
 void CFilterKeySettingDlg::UpdateEscDisableHotkeyRegistration()
@@ -1059,7 +996,7 @@ void CFilterKeySettingDlg::UpdateEscDisableHotkeyRegistration()
       {
         TRACE(_T("SetTimer failed. esc disable watcher, error=%lu\n"), GetLastError());
         GLOBAL_OPTION.set(KEY_DISABLE_WITH_ESC, static_cast<DWORD>(false));
-        if (auto esc_button = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_WITH_ESC)); esc_button)
+        if (auto esc_button = static_cast<CButton*>(GetDlgItem(IDC_CHECK_DISABLE_WITH_ESC)); esc_button)
           esc_button->SetCheck(BST_UNCHECKED);
       }
     }
@@ -1073,6 +1010,112 @@ void CFilterKeySettingDlg::UpdateEscDisableHotkeyRegistration()
       bg_esc_prev_down_    = false;
     }
   }
+}
+
+void CFilterKeySettingDlg::UpdateProcessWatcherRegistration()
+{
+  const bool enabled = (GLOBAL_OPTION.getInteger(KEY_PROCESS_OFF_ENABLED) != 0);
+  CString    name    = GLOBAL_OPTION.getString(KEY_PROCESS_OFF_NAME);
+  name.Trim();
+
+  const bool should_run = enabled && !name.IsEmpty();
+
+  if (should_run)
+  {
+    process_watch_target_ = name;
+
+    if (!process_watch_active_)
+    {
+      process_watch_was_focused_ = false;
+      process_watch_auto_off_    = false;
+      process_watch_last_fg_     = nullptr;
+
+      if (SetTimer(TIMER_PROCESS_WATCHER, 250, nullptr) != 0)
+        process_watch_active_ = true;
+    }
+  }
+  else
+  {
+    if (process_watch_active_)
+    {
+      KillTimer(TIMER_PROCESS_WATCHER);
+      process_watch_active_      = false;
+      process_watch_was_focused_ = false;
+      process_watch_auto_off_    = false;
+      process_watch_last_fg_     = nullptr;
+    }
+  }
+}
+
+CString CFilterKeySettingDlg::GetForegroundProcessName()
+{
+  HWND fg = ::GetForegroundWindow();
+  if (!fg)
+    return CString();
+
+  DWORD pid = 0;
+  ::GetWindowThreadProcessId(fg, &pid);
+  if (pid == 0)
+    return CString();
+
+  HANDLE proc = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+  if (!proc)
+    return CString();
+
+  TCHAR path[MAX_PATH] = {};
+  DWORD size           = MAX_PATH;
+  BOOL  ok             = ::QueryFullProcessImageName(proc, 0, path, &size);
+  ::CloseHandle(proc);
+
+  if (!ok)
+    return CString();
+
+  CString full(path);
+  int     pos = full.ReverseFind(_T('\\'));
+  return (pos >= 0) ? full.Mid(pos + 1) : full;
+}
+
+void CFilterKeySettingDlg::TickProcessWatcher()
+{
+  HWND fg = ::GetForegroundWindow();
+  if (fg == process_watch_last_fg_)
+    return;
+  process_watch_last_fg_ = fg;
+
+  CString fg_name     = GetForegroundProcessName();
+  bool    now_focused = (!fg_name.IsEmpty() &&
+                      fg_name.CompareNoCase(process_watch_target_) == 0);
+
+  if (process_watch_was_focused_ && !now_focused)
+  {
+    const int current = static_cast<int>(GLOBAL_OPTION.getInteger(KEY_LAST_PRESET));
+    if (PRESET_IS_ON(current))
+    {
+      process_watch_saved_preset_ = current;
+      process_watch_switching_    = true;
+      ResetEditMode();
+      ActivatePreset(PRESET_OFF, FALSE, TRUE, _T("Process watcher (off)"));
+      process_watch_switching_ = false;
+      process_watch_auto_off_  = true;
+    }
+  }
+  else if (!process_watch_was_focused_ && now_focused)
+  {
+    const bool restore = (GLOBAL_OPTION.getInteger(KEY_PROCESS_OFF_RESTORE) != 0);
+    if (restore && process_watch_auto_off_ && PRESET_IS_VALID(process_watch_saved_preset_))
+    {
+      const int current = static_cast<int>(GLOBAL_OPTION.getInteger(KEY_LAST_PRESET));
+      if (current == PRESET_OFF)
+      {
+        process_watch_switching_ = true;
+        ActivatePreset(process_watch_saved_preset_, FALSE, TRUE, _T("Process watcher (restore)"));
+        process_watch_switching_ = false;
+      }
+    }
+    process_watch_auto_off_ = false;
+  }
+
+  process_watch_was_focused_ = now_focused;
 }
 
 bool CFilterKeySettingDlg::ValidateActiveHotkeysAndAlert() const
@@ -1097,7 +1140,6 @@ void CFilterKeySettingDlg::RefreshToggleHotkeyEditText()
 
 void CFilterKeySettingDlg::UpdateInterface(const int preset)
 {
-  // 프로그램 타이틀바
   {
     PresetOption option(GLOBAL_OPTION.getInteger(KEY_LAST_PRESET));
     CString      window_title;
@@ -1106,44 +1148,42 @@ void CFilterKeySettingDlg::UpdateInterface(const int preset)
     SetWindowText(window_title);
   }
 
-  // 프리셋 설정 값 로드
   if (PRESET_IS_ON(preset))
   {
-    PresetOption option(preset);
+    PresetValues pv = PresetService::GetPresetValues(preset);
     CString      value;
 
-    value.Format(_T("%d"), option.getInteger(KEY_ACCEPT_DELAY));
-    GetDlgItem(IDC_EDIT_ACCEPT_DELAY)->SetWindowText(value);
+    const auto SetEditValue = [&](int ctrl_id, DWORD v) {
+      if (auto* ctrl = GetDlgItem(ctrl_id); ctrl)
+      {
+        value.Format(_T("%d"), v);
+        ctrl->SetWindowText(value);
+      }
+    };
 
-    value.Format(_T("%d"), option.getInteger(KEY_REPEAT_DELAY));
-    GetDlgItem(IDC_EDIT_REPEAT_DELAY)->SetWindowText(value);
-
-    value.Format(_T("%d"), option.getInteger(KEY_REPEAT_RATE));
-    GetDlgItem(IDC_EDIT_REPEAT_RATE)->SetWindowText(value);
+    SetEditValue(IDC_EDIT_ACCEPT_DELAY, pv.accept_delay);
+    SetEditValue(IDC_EDIT_REPEAT_DELAY, pv.repeat_delay);
+    SetEditValue(IDC_EDIT_REPEAT_RATE, pv.repeat_rate);
   }
 
-  // 수정 모드 활성화 여부
-  GetDlgItem(IDC_CHECK_EDIT_MODE)->EnableWindow(PRESET_IS_ON(preset) ? TRUE : FALSE);
-  auto edit_btn = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE));
-  auto edit_on  = edit_btn ? edit_btn->GetCheck() : false;
+  auto* edit_btn = static_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE));
+  if (edit_btn)
+    edit_btn->EnableWindow(PRESET_IS_ON(preset) ? TRUE : FALSE);
 
-  // 프리셋 설정값 UI 활성화 여부
-  bool enable = PRESET_IS_ON(preset) && edit_on;
-  GetDlgItem(IDC_EDIT_ACCEPT_DELAY)->EnableWindow(enable ? TRUE : FALSE);
-  GetDlgItem(IDC_EDIT_REPEAT_DELAY)->EnableWindow(enable ? TRUE : FALSE);
-  GetDlgItem(IDC_EDIT_REPEAT_RATE)->EnableWindow(enable ? TRUE : FALSE);
+  const bool edit_on = edit_btn ? (edit_btn->GetCheck() != 0) : false;
+  const bool enable  = PRESET_IS_ON(preset) && edit_on;
+
+  if (auto* ctrl = GetDlgItem(IDC_EDIT_ACCEPT_DELAY); ctrl)
+    ctrl->EnableWindow(enable ? TRUE : FALSE);
+  if (auto* ctrl = GetDlgItem(IDC_EDIT_REPEAT_DELAY); ctrl)
+    ctrl->EnableWindow(enable ? TRUE : FALSE);
+  if (auto* ctrl = GetDlgItem(IDC_EDIT_REPEAT_RATE); ctrl)
+    ctrl->EnableWindow(enable ? TRUE : FALSE);
 }
 
 void CFilterKeySettingDlg::InitializePresetCount()
 {
-  int count = static_cast<int>(GLOBAL_OPTION.getInteger(KEY_PRESET_COUNT));
-  if (count < PRESET_MIN_COUNT)
-    count = PRESET_MIN_COUNT;
-  if (count > PRESET_MAX_COUNT)
-    count = PRESET_MAX_COUNT;
-
-  preset_count_ = count;
-  GLOBAL_OPTION.set(KEY_PRESET_COUNT, static_cast<DWORD>(preset_count_));
+  preset_count_ = PresetService::ResolvePresetCount();
 }
 
 void CFilterKeySettingDlg::BuildPresetButtons()
@@ -1439,7 +1479,7 @@ UINT CFilterKeySettingDlg::GetPresetButtonControlId(const int preset) const
 
 bool CFilterKeySettingDlg::IsEditModeChecked() const
 {
-  auto edit_button = reinterpret_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE));
+  auto edit_button = static_cast<CButton*>(GetDlgItem(IDC_CHECK_EDIT_MODE));
   return (edit_button && edit_button->GetCheck() == BST_CHECKED);
 }
 
@@ -1456,7 +1496,10 @@ bool CFilterKeySettingDlg::IsDialogForeground() const
   if (fg == owner)
     return true;
 
-  return (::IsChild(owner, fg) == TRUE);
+  if (::IsChild(owner, fg))
+    return true;
+
+  return (::GetWindow(fg, GW_OWNER) == owner);
 }
 
 bool CFilterKeySettingDlg::SaveCurrentEditingValues(const int target_preset, bool* changed)
@@ -1467,12 +1510,7 @@ bool CFilterKeySettingDlg::SaveCurrentEditingValues(const int target_preset, boo
   if (!PRESET_IS_ON(target_preset))
     return true;
 
-  PresetOption option(target_preset);
-  bool         has_changed = false;
-
-  const auto CheckAndSet = [&](int control_id, auto&& key,
-                               DWORD min_value, DWORD max_value,
-                               LPCTSTR tag) {
+  const auto ReadDwordFromEdit = [&](int control_id, DWORD* out) -> bool {
     BOOL ok = FALSE;
     UINT u  = GetDlgItemInt(control_id, &ok, FALSE);
     if (!ok)
@@ -1481,36 +1519,26 @@ bool CFilterKeySettingDlg::SaveCurrentEditingValues(const int target_preset, boo
       GetDlgItem(control_id)->SetFocus();
       return false;
     }
-
-    DWORD v = static_cast<DWORD>(u);
-    if (v < min_value || v > max_value)
-    {
-      CString rangeErrorMessage;
-      rangeErrorMessage.Format(_T("%s 값은 %lu에서 %lu 사이여야 합니다."), tag,
-                               min_value, max_value);
-      AfxMessageBox(rangeErrorMessage);
-      GetDlgItem(control_id)->SetFocus();
-      return false;
-    }
-
-    if (option.getInteger(key, v) != v)
-      has_changed = true;
-
-    option.set(key, v);
+    *out = static_cast<DWORD>(u);
     return true;
   };
 
-  if (!CheckAndSet(IDC_EDIT_ACCEPT_DELAY, KEY_ACCEPT_DELAY, 0, 2000, _T("Accept Delay")))
+  PresetValues values = {};
+  if (!ReadDwordFromEdit(IDC_EDIT_ACCEPT_DELAY, &values.accept_delay))
     return false;
-  if (!CheckAndSet(IDC_EDIT_REPEAT_DELAY, KEY_REPEAT_DELAY, 0, 2000, _T("Repeat Delay")))
+  if (!ReadDwordFromEdit(IDC_EDIT_REPEAT_DELAY, &values.repeat_delay))
     return false;
-  if (!CheckAndSet(IDC_EDIT_REPEAT_RATE, KEY_REPEAT_RATE, 0, 1000, _T("Repeat Rate")))
+  if (!ReadDwordFromEdit(IDC_EDIT_REPEAT_RATE, &values.repeat_rate))
     return false;
 
-  if (changed)
-    *changed = has_changed;
+  auto validation = PresetService::ValidateValues(values);
+  if (!validation.ok)
+  {
+    AfxMessageBox(validation.error_message);
+    return false;
+  }
 
-  return true;
+  return PresetService::SavePresetValues(target_preset, values, changed);
 }
 
 void CFilterKeySettingDlg::OnCommandPresetButton(UINT nID)

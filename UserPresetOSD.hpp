@@ -1,9 +1,10 @@
 ﻿#pragma once
 
-#include "UserOption.hpp"
+#include "UserDefine.hpp"
 
 namespace UserPresetOSD {
 
+// Display corner position
 enum class Corner : int
 {
   TopLeft = 0,
@@ -12,10 +13,16 @@ enum class Corner : int
   BottomRight,
 };
 
+// Initialization
 void InitializeOptionDefaults();
-void InitializeOptionUI(CWnd* owner);
-void LayoutOptionUI(CWnd* owner);
-void SaveOptionFromUI(CWnd* owner);
+
+// Display
 void ShowPresetIndex(int preset_index);
+void RefreshDisplay();
+
+// Value clamping helpers
+int ClampPosition(int value);
+int ClampAlpha(int value);
+int ClampSizePercent(int value);
 
 }  // namespace UserPresetOSD

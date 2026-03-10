@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include "FilterKeySettingDefine.h"
 #include "UserMouseTracker.hpp"
 #include "UserOption.hpp"
 #include "UserTooltip.hpp"
@@ -17,12 +16,10 @@ class DialogDebug;
 // CFilterKeySettingDlg dialog
 class CFilterKeySettingDlg : public CDialogEx
 {
-  // Construction
  public:
-  CFilterKeySettingDlg(CWnd* pParent = nullptr);  // standard constructor
+  CFilterKeySettingDlg(CWnd* pParent = nullptr);
   ~CFilterKeySettingDlg();
 
-// Dialog Data
 #ifdef AFX_DESIGN_TIME
   enum
   {
@@ -33,12 +30,9 @@ class CFilterKeySettingDlg : public CDialogEx
  protected:
   virtual void DoDataExchange(CDataExchange* pDX);  // DDX/DDV support
 
-  // Implementation
- protected:
-  HICON m_hIcon;
-
-  // Generated message map functions
-  virtual BOOL    OnInitDialog();
+  // MFC message handlers
+  HICON           m_hIcon;
+  BOOL            OnInitDialog() override;
   afx_msg void    OnPaint();
   afx_msg HCURSOR OnQueryDragIcon();
   afx_msg void    OnDestroy();
@@ -49,12 +43,11 @@ class CFilterKeySettingDlg : public CDialogEx
   afx_msg LRESULT OnMouseTrackerTriggered(WPARAM wParam, LPARAM lParam);
   afx_msg LRESULT OnDebugDialogClosed(WPARAM wParam, LPARAM lParam);
   afx_msg LRESULT OnDebugOptionsChanged(WPARAM wParam, LPARAM lParam);
+  BOOL            PreTranslateMessage(MSG* pMsg) override;
   DECLARE_MESSAGE_MAP()
 
-  virtual BOOL PreTranslateMessage(MSG* pMsg);
-
+  // Button / checkbox click handlers
   afx_msg void OnCommandPresetButton(UINT nID);
-
   afx_msg void OnBnClickedCheckEditMode();
   afx_msg void OnBnClickedCheckRestoreSetting();
   afx_msg void OnBnClickedCheckDisableHotkey();
@@ -64,64 +57,103 @@ class CFilterKeySettingDlg : public CDialogEx
   afx_msg void OnBnClickedCheckSetMouseDblclickTracker();
   afx_msg void OnBnClickedCheckDisableWithEsc();
 
+  // Focus handlers
   afx_msg void OnEnSetFocusTesting();
   afx_msg void OnEnKillFocusTesting();
   afx_msg void OnEnSetFocusToggleKeybind();
 
-  /////////////////////////////////////////////
+  // Preset operations
   void BnClickPreset(const int preset);
+  void ActivatePreset(const int preset, BOOL alert, BOOL beep = FALSE, LPCTSTR reason = nullptr);
+  bool SaveCurrentEditingValues(const int target_preset, bool* changed = nullptr);
+  void ResetEditMode();
+
+  // Dialog / popup
   void PopupRenameDialog(const int preset);
   void PopupKeyBindingDialog(const int preset);
   void PopupToggleKeyBindingDialog();
-  void ActivePreset(const int preset, BOOL alert, BOOL beep = FALSE);
-  void ResetEditMode();
-  bool ValidateActiveHotkeysAndAlert() const;
-  void RefreshToggleHotkeyEditText();
-  void UpdateEscDisableHotkeyRegistration();
 
+ protected:
+  void OpenDeveloperDebugDialog();
+
+  // Option sync
   void UpdateOption(BOOL write = TRUE);
-  void UpdateInterface(const int preset);
+  void SyncOptionsFromUI();
+  void SyncOptionsToUI();
+  void ApplySubsystemOptions();
+
+  // UI update
+  void           UpdateInterface(const int preset);
+  void           RefreshPresetButtonCaption(const int preset);
+  void           RefreshAllPresetButtonCaptions();
+  void           RefreshToggleHotkeyEditText();
+  void           UpdateEscDisableHotkeyRegistration();
+  void           UpdateProcessWatcherRegistration();
+  void           TickProcessWatcher();
+  static CString GetForegroundProcessName();
+  bool           ValidateActiveHotkeysAndAlert() const;
+
+  // Tray icon
   bool AddTrayIcon();
   void RemoveTrayIcon();
   void RestoreFromTray();
+
+  // Hotkey registration
   void RegisterPresetHotkeys();
   void UnregisterPresetHotkeys();
-  void RefreshPresetButtonCaption(const int preset);
-  void RefreshAllPresetButtonCaptions();
+
+  // Layout / init
   void InitializePresetCount();
-  void OpenDeveloperDebugDialog();
   void BuildPresetButtons();
   void LayoutDynamicControls();
+
+  // Query
   UINT GetPresetButtonControlId(const int preset) const;
   bool IsEditModeChecked() const;
   bool IsDialogForeground() const;
-  bool SaveCurrentEditingValues(const int target_preset, bool* changed = nullptr);
 
  private:
+  // Preset state
   int last_selected_      = PRESET_OFF;
   int preset_before_edit_ = PRESET_OFF;
   int preset_count_       = 0;
   int last_on_preset_     = 1;
 
-  // System Tray Icon
-  static constexpr UINT     WM_TRAYICON_MSG                      = WM_APP + 1;
-  static constexpr UINT     WM_DEV_DEBUG_CLOSED                  = WM_APP + 60;
-  static constexpr UINT     WM_DEV_DEBUG_OPTIONS_CHANGED         = WM_APP + 61;
-  static constexpr UINT_PTR TIMER_BG_ESC_WATCH                   = 0x12F1;
-  static constexpr UINT     TRAY_ICON_ID                         = 1;
-  NOTIFYICONDATA            tray_icon_data_                      = {};
-  bool                      tray_icon_added_                     = false;
-  bool                      hotkey_registered_[PRESET_MAX_COUNT] = {
-    false,
-  };
-  bool                                  toggle_hotkey_registered_   = false;
-  static constexpr UINT                 dynamic_preset_button_base_ = 2000;
+  // Message IDs and timer IDs
+  static constexpr UINT     WM_TRAYICON_MSG             = WM_APP + 1;
+  static constexpr UINT_PTR TIMER_BG_ESC_WATCH          = 0x12F1;
+  static constexpr UINT_PTR TIMER_PROCESS_WATCHER       = 0x12F2;
+  static constexpr UINT     TRAY_ICON_ID                = 1;
+  static constexpr UINT     dynamic_preset_button_base_ = 2000;
+
+  // Tray icon
+  NOTIFYICONDATA tray_icon_data_  = {};
+  bool           tray_icon_added_ = false;
+
+  // Hotkey registration state
+  bool hotkey_registered_[PRESET_MAX_COUNT] = { false };
+  bool toggle_hotkey_registered_            = false;
+
+  // Dynamic UI
   std::vector<std::unique_ptr<CButton>> preset_buttons_;
   bool                                  alt_hotkey_view_              = false;
   bool                                  opening_toggle_hotkey_dialog_ = false;
-  bool                                  bg_esc_watch_active_          = false;
-  bool                                  bg_esc_prev_down_             = false;
-  Tooltip                               tooltip_;
-  MouseTracker                          mouse_tracker_;
-  DialogDebug*                          debug_dialog_ = nullptr;
+
+  // Background ESC watcher
+  bool bg_esc_watch_active_ = false;
+  bool bg_esc_prev_down_    = false;
+
+  // Process watcher
+  bool    process_watch_active_       = false;
+  bool    process_watch_was_focused_  = false;
+  bool    process_watch_auto_off_     = false;
+  bool    process_watch_switching_    = false;
+  int     process_watch_saved_preset_ = PRESET_OFF;
+  CString process_watch_target_;
+  HWND    process_watch_last_fg_ = nullptr;
+
+  // Subsystems
+  Tooltip      tooltip_;
+  MouseTracker mouse_tracker_;
+  DialogDebug* debug_dialog_ = nullptr;
 };

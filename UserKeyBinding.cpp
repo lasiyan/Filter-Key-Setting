@@ -62,7 +62,7 @@ void BuildActiveHotkeyEntries(int preset_count, std::vector<ActiveHotkeyEntry>* 
 
       PresetOption option(preset);
       DWORD        hotkey_value = option.getInteger(KEY_PRESET_HOTKEY, 0);
-      if ((hotkey_value & 0xFFFF) == 0)
+      if (HotkeyVK(hotkey_value) == 0)
         continue;
 
       entries->push_back({ hotkey_value, PresetOption::TAG(preset) });
@@ -72,7 +72,7 @@ void BuildActiveHotkeyEntries(int preset_count, std::vector<ActiveHotkeyEntry>* 
   if (IsToggleEnabled() && !ignore_toggle)
   {
     DWORD toggle_hotkey = GetToggleHotkey();
-    if ((toggle_hotkey & 0xFFFF) != 0)
+    if (HotkeyVK(toggle_hotkey) != 0)
       entries->push_back({ toggle_hotkey, _T("프리셋 토글") });
   }
 }
@@ -95,15 +95,11 @@ DWORD GetToggleHotkey()
 
 CString HotkeyToString(DWORD hotkey_value, bool with_not_set_placeholder)
 {
-  UINT vk        = static_cast<UINT>(hotkey_value & 0xFFFF);
-  UINT modifiers = static_cast<UINT>((hotkey_value >> 16) & 0xFFFF);
-
+  const UINT vk = HotkeyVK(hotkey_value);
   if (vk == 0)
-  {
     return with_not_set_placeholder ? _T("(미설정)") : _T("");
-  }
 
-  CString result = ModifierToString(modifiers);
+  CString result = ModifierToString(HotkeyModifiers(hotkey_value));
   result += KeyToString(vk);
   return result;
 }
@@ -144,8 +140,8 @@ bool FindDuplicatePresetHotkey(int target_preset, int preset_count,
   if (hotkey_value == 0)
     return false;
 
-  UINT vk        = static_cast<UINT>(hotkey_value & 0xFFFF);
-  UINT modifiers = static_cast<UINT>((hotkey_value >> 16) & 0xFFFF);
+  const UINT vk        = HotkeyVK(hotkey_value);
+  const UINT modifiers = HotkeyModifiers(hotkey_value);
 
   for (int preset = PRESET_OFF; preset < preset_count; ++preset)
   {
@@ -153,11 +149,8 @@ bool FindDuplicatePresetHotkey(int target_preset, int preset_count,
       continue;
 
     PresetOption option(preset);
-    DWORD        other_hotkey    = option.getInteger(KEY_PRESET_HOTKEY, 0);
-    UINT         other_vk        = static_cast<UINT>(other_hotkey & 0xFFFF);
-    UINT         other_modifiers = static_cast<UINT>((other_hotkey >> 16) & 0xFFFF);
-
-    if (vk == other_vk && modifiers == other_modifiers)
+    DWORD        other_hotkey = option.getInteger(KEY_PRESET_HOTKEY, 0);
+    if (vk == HotkeyVK(other_hotkey) && modifiers == HotkeyModifiers(other_hotkey))
     {
       if (duplicate_preset)
         *duplicate_preset = preset;
@@ -177,20 +170,18 @@ bool FindDuplicateActiveHotkeyCandidate(int      preset_count,
   if (duplicate_target_desc)
     duplicate_target_desc->Empty();
 
-  if ((hotkey_value & 0xFFFF) == 0)
+  if (HotkeyVK(hotkey_value) == 0)
     return false;
 
   std::vector<ActiveHotkeyEntry> entries;
   BuildActiveHotkeyEntries(preset_count, &entries, ignore_preset, ignore_toggle);
 
-  const UINT vk        = static_cast<UINT>(hotkey_value & 0xFFFF);
-  const UINT modifiers = static_cast<UINT>((hotkey_value >> 16) & 0xFFFF);
+  const UINT vk        = HotkeyVK(hotkey_value);
+  const UINT modifiers = HotkeyModifiers(hotkey_value);
 
   for (const auto& entry : entries)
   {
-    const UINT other_vk        = static_cast<UINT>(entry.hotkey & 0xFFFF);
-    const UINT other_modifiers = static_cast<UINT>((entry.hotkey >> 16) & 0xFFFF);
-    if (vk == other_vk && modifiers == other_modifiers)
+    if (vk == HotkeyVK(entry.hotkey) && modifiers == HotkeyModifiers(entry.hotkey))
     {
       if (duplicate_target_desc)
         *duplicate_target_desc = entry.desc;
@@ -211,15 +202,13 @@ bool ValidateActiveHotkeys(int preset_count, CString* conflict_message)
 
   for (size_t i = 0; i < entries.size(); ++i)
   {
-    const UINT left_vk        = static_cast<UINT>(entries[i].hotkey & 0xFFFF);
-    const UINT left_modifiers = static_cast<UINT>((entries[i].hotkey >> 16) & 0xFFFF);
+    const UINT left_vk        = HotkeyVK(entries[i].hotkey);
+    const UINT left_modifiers = HotkeyModifiers(entries[i].hotkey);
 
     for (size_t j = i + 1; j < entries.size(); ++j)
     {
-      const UINT right_vk        = static_cast<UINT>(entries[j].hotkey & 0xFFFF);
-      const UINT right_modifiers = static_cast<UINT>((entries[j].hotkey >> 16) & 0xFFFF);
-
-      if (left_vk == right_vk && left_modifiers == right_modifiers)
+      if (left_vk == HotkeyVK(entries[j].hotkey) &&
+          left_modifiers == HotkeyModifiers(entries[j].hotkey))
       {
         if (conflict_message)
         {
@@ -239,20 +228,15 @@ bool ValidateActiveHotkeys(int preset_count, CString* conflict_message)
 
 bool IsActiveHotkeyAssigned(UINT vk, UINT modifiers, int preset_count)
 {
-  const DWORD hotkey_value = (static_cast<DWORD>(modifiers) << 16) | static_cast<DWORD>(vk);
+  const DWORD hotkey_value = ComposeHotkey(vk, modifiers);
 
   std::vector<ActiveHotkeyEntry> entries;
   BuildActiveHotkeyEntries(preset_count, &entries, -1, false);
 
   for (const auto& entry : entries)
   {
-    const UINT other_vk        = static_cast<UINT>(entry.hotkey & 0xFFFF);
-    const UINT other_modifiers = static_cast<UINT>((entry.hotkey >> 16) & 0xFFFF);
-    if (other_vk == static_cast<UINT>(hotkey_value & 0xFFFF) &&
-        other_modifiers == static_cast<UINT>((hotkey_value >> 16) & 0xFFFF))
-    {
+    if (HotkeyVK(entry.hotkey) == vk && HotkeyModifiers(entry.hotkey) == modifiers)
       return true;
-    }
   }
 
   return false;
@@ -287,8 +271,8 @@ void RegisterPresetHotkeys(HWND hWnd, int preset_count,
     PresetOption option(preset);
     DWORD        hotkey_value = option.getInteger(KEY_PRESET_HOTKEY, 0);
 
-    UINT vk        = static_cast<UINT>(hotkey_value & 0xFFFF);
-    UINT modifiers = static_cast<UINT>((hotkey_value >> 16) & 0xFFFF);
+    const UINT vk        = HotkeyVK(hotkey_value);
+    const UINT modifiers = HotkeyModifiers(hotkey_value);
     if (vk == 0)
       continue;
 
@@ -337,8 +321,8 @@ void RegisterConfiguredHotkeys(HWND hWnd, int preset_count,
     return;
 
   const DWORD toggle_hotkey = GetToggleHotkey();
-  const UINT  vk            = static_cast<UINT>(toggle_hotkey & 0xFFFF);
-  const UINT  modifiers     = static_cast<UINT>((toggle_hotkey >> 16) & 0xFFFF);
+  const UINT  vk            = HotkeyVK(toggle_hotkey);
+  const UINT  modifiers     = HotkeyModifiers(toggle_hotkey);
   if (vk == 0)
     return;
 
@@ -368,4 +352,35 @@ void UnregisterConfiguredHotkeys(HWND hWnd, int preset_count,
     *toggle_registered = false;
   }
 }
+
+HotkeyValidation ValidateHotkeyCandidate(int preset_count, DWORD hotkey_value,
+                                         int exclude_preset, bool is_toggle)
+{
+  HotkeyValidation result = { true, {} };
+
+  if (HotkeyVK(hotkey_value) == 0)
+    return result;
+
+  const DWORD reserved_debug_hotkey = ComposeHotkey(VK_F12, MOD_CONTROL | MOD_ALT);
+  if (hotkey_value == reserved_debug_hotkey)
+  {
+    result.ok            = false;
+    result.error_message = _T("Ctrl+Alt+F12는 사용할 수 없는 단축키입니다.\r\n다른 단축키를 입력하세요.");
+    return result;
+  }
+
+  CString duplicate_desc;
+  if (FindDuplicateActiveHotkeyCandidate(preset_count, hotkey_value,
+                                         exclude_preset, is_toggle,
+                                         &duplicate_desc))
+  {
+    result.ok = false;
+    result.error_message.Format(_T("이미 '%s'에 등록된 단축키입니다.\r\n다른 단축키를 입력하세요."),
+                                (LPCTSTR)duplicate_desc);
+    return result;
+  }
+
+  return result;
+}
+
 }  // namespace KeyBinding
